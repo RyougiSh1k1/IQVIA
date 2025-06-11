@@ -1,16 +1,15 @@
 ================================================================================
-OUD LABEL EXTRACTION FROM CLAIMS DATA
+IQVIA OUD LABEL EXTRACTION
 ================================================================================
-
-Processing year 2006...
 Loading OUD ICD codes...
-Loaded 229 ICD code patterns
-Error during processing: [Errno 13] Permission denied: '/sharefolder/IQVIA/header/header_claims_2006.csv'
+Loaded ICD codes from: extracted_icd_codes.csv
+Found 229 unique ICD codes
 
-Total processing time: 0.00 minutes
+Sample ICD patterns: ['^96500$', '^96501$', '^96509$', '^E8500$', '^E8501$']
+Loading header for year 2006...
+Loaded 62 columns from: /home/qinyu@chapman.edu/IQVIA/iqvia_data_processing/header/header_claims_2006.csv
 
-Extraction complete!
-Next steps:
-1. Review the oud_patients_2006.csv file for OUD cases
-2. Check final_dataset_with_labels_2006.csv for the complete labeled dataset
-3. Run for other years (2007-2022) as needed
+Headers: ['pat_id', 'claimno', 'linenum', 'rectype', 'tos_flag', 'pos', 'conf_num', 'patstat', 'billtype', 'ndc']... (showing first 10)
+
+Found 0 CSV files to process
+ERROR: No CSV files found
