@@ -4,7 +4,8 @@ OUD LABEL EXTRACTION FROM CLAIMS DATA
 
 Processing year 2006...
 Loading OUD ICD codes...
-Error during processing: [Errno 2] No such file or directory: 'extracted_icd_codes.csv'
+Loaded 229 ICD code patterns
+Error during processing: [Errno 13] Permission denied: '/sharefolder/IQVIA/header/header_claims_2006.csv'
 
 Total processing time: 0.00 minutes
 
