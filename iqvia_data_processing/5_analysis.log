@@ -1,0 +1,18 @@
+Loading merged features dataset...
+Total records: 3,851,434
+✓ Saved random sample of 100 records to 'sample_random_100.csv'
+✓ Saved first 1000 records to 'sample_first_1000.csv'
+✓ Saved stratified sample by MME levels to 'sample_stratified_mme.csv'
+✓ Saved 50 high-risk patient samples to 'sample_high_risk_patients.csv'
+✓ Saved summary statistics to 'feature_summary_stats.csv'
+✓ Saved 30 interesting pattern samples to 'sample_interesting_patterns.csv'
+
+📊 Dataset Overview:
+Total patients: 3,851,434
+Date range: 2006-01-01 to 2022-04-12
+
+Feature ranges:
+  MME_last_365_days: 0.01 - 53732.32
+  MME_last_2_years: 0.01 - 106982.32
+  prscbr_last_2_years: 1 - 59
+  prscrbr_last_180_days: 1 - 28

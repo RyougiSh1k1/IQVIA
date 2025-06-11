@@ -1,279 +1,281 @@
 """
-This file extracts ICD labels to classify patients with Opioid Use Disorder (OUD) events.
+This file extracts ICD labels from IQVIA claims files to classify patients with Opioid Use Disorder (OUD) events.
 Creates binary labels: 1 for patients with OUD events, 0 for patients without OUD events.
 
-The script looks for ICD-10 codes related to opioid use disorders and creates target labels
-for the machine learning model.
-
-Input files:
-- final_features.csv (merged feature dataset)
-- Raw IQVIA claims data with ICD codes
-
-Output file:
-- final_dataset_with_labels.csv (complete dataset with features and OUD labels)
+The script looks for ICD codes related to opioid use disorders in the actual claims data
+and creates target labels for the machine learning model.
 """
 
 import pandas as pd
 import time
 import os
+import re
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 
-# ICD-10 codes for Opioid Use Disorders
-OUD_ICD10_CODES = [
-    'F11.10',  # Opioid use disorder, uncomplicated
-    'F11.11',  # Opioid use disorder, in remission
-    'F11.12',  # Opioid use disorder with intoxication
-    'F11.120', # Opioid use disorder with intoxication, uncomplicated
-    'F11.121', # Opioid use disorder with intoxication delirium
-    'F11.122', # Opioid use disorder with intoxication with perceptual disturbance
-    'F11.129', # Opioid use disorder with intoxication, unspecified
-    'F11.13',  # Opioid use disorder with withdrawal
-    'F11.14',  # Opioid use disorder with opioid-induced mood disorder
-    'F11.15',  # Opioid use disorder with opioid-induced psychotic disorder
-    'F11.150', # Opioid use disorder with opioid-induced psychotic disorder with delusions
-    'F11.151', # Opioid use disorder with opioid-induced psychotic disorder with hallucinations
-    'F11.159', # Opioid use disorder with opioid-induced psychotic disorder, unspecified
-    'F11.18',  # Opioid use disorder with other opioid-induced disorder
-    'F11.181', # Opioid use disorder with opioid-induced sexual dysfunction
-    'F11.182', # Opioid use disorder with opioid-induced sleep disorder
-    'F11.188', # Opioid use disorder with other opioid-induced disorder
-    'F11.19',  # Opioid use disorder with unspecified opioid-induced disorder
-    'F11.20',  # Opioid dependence, uncomplicated
-    'F11.21',  # Opioid dependence, in remission
-    'F11.22',  # Opioid dependence with intoxication
-    'F11.220', # Opioid dependence with intoxication, uncomplicated
-    'F11.221', # Opioid dependence with intoxication delirium
-    'F11.222', # Opioid dependence with intoxication with perceptual disturbance
-    'F11.229', # Opioid dependence with intoxication, unspecified
-    'F11.23',  # Opioid dependence with withdrawal
-    'F11.24',  # Opioid dependence with opioid-induced mood disorder
-    'F11.25',  # Opioid dependence with opioid-induced psychotic disorder
-    'F11.250', # Opioid dependence with opioid-induced psychotic disorder with delusions
-    'F11.251', # Opioid dependence with opioid-induced psychotic disorder with hallucinations
-    'F11.259', # Opioid dependence with opioid-induced psychotic disorder, unspecified
-    'F11.28',  # Opioid dependence with other opioid-induced disorder
-    'F11.281', # Opioid dependence with opioid-induced sexual dysfunction
-    'F11.282', # Opioid dependence with opioid-induced sleep disorder
-    'F11.288', # Opioid dependence with other opioid-induced disorder
-    'F11.29',  # Opioid dependence with unspecified opioid-induced disorder
-    'F11.90',  # Opioid use, unspecified, uncomplicated
-    'F11.92',  # Opioid use, unspecified with intoxication
-    'F11.920', # Opioid use, unspecified with intoxication, uncomplicated
-    'F11.921', # Opioid use, unspecified with intoxication delirium
-    'F11.922', # Opioid use, unspecified with intoxication with perceptual disturbance
-    'F11.929', # Opioid use, unspecified with intoxication, unspecified
-    'F11.93',  # Opioid use, unspecified with withdrawal
-    'F11.94',  # Opioid use, unspecified with opioid-induced mood disorder
-    'F11.95',  # Opioid use, unspecified with opioid-induced psychotic disorder
-    'F11.950', # Opioid use, unspecified with opioid-induced psychotic disorder with delusions
-    'F11.951', # Opioid use, unspecified with opioid-induced psychotic disorder with hallucinations
-    'F11.959', # Opioid use, unspecified with opioid-induced psychotic disorder, unspecified
-    'F11.98',  # Opioid use, unspecified with other specified opioid-induced disorder
-    'F11.981', # Opioid use, unspecified with opioid-induced sexual dysfunction
-    'F11.982', # Opioid use, unspecified with opioid-induced sleep disorder
-    'F11.988', # Opioid use, unspecified with other opioid-induced disorder
-    'F11.99'   # Opioid use, unspecified with unspecified opioid-induced disorder
-]
+def load_oud_icd_codes(csv_path='extracted_icd_codes.csv'):
+    """
+    Load OUD-related ICD codes from the provided CSV file
+    Returns a list of regex patterns to match ICD codes with wildcards
+    """
+    print("Loading OUD ICD codes...")
+    
+    # Read the ICD codes CSV
+    icd_df = pd.read_csv(csv_path)
+    
+    # Extract unique ICD codes
+    icd_codes = icd_df['ICD_Code'].unique()
+    
+    # Convert ICD codes to regex patterns (replace X/x with \d for any digit)
+    icd_patterns = []
+    for code in icd_codes:
+        # Replace X or x with \d (any digit) and escape other special characters
+        pattern = code.replace('X', r'\d').replace('x', r'\d')
+        pattern = '^' + re.escape(pattern).replace(r'\\d', r'\d') + '$'
+        icd_patterns.append(pattern)
+    
+    print(f"Loaded {len(icd_patterns)} ICD code patterns")
+    return icd_patterns, list(icd_codes)
 
-def process_patient_oud_label(patient_data):
+def read_claims_header(year='2006'):
     """
-    Process each patient to determine if they have an OUD event
+    Read the header for claims files
     """
-    patient_id, most_recent_date, processed_patient_ids = patient_data
-    
-    # Skip already processed patients
-    if patient_id in processed_patient_ids:
-        return None
-    
-    print(f"Processing patient: {patient_id}", flush=True)
-    
-    # Filter ICD data for current patient
-    patient_icd_df = icd_df[icd_df['pat_id'] == patient_id]
-    
-    # Check if patient has any OUD-related ICD codes
-    oud_events = patient_icd_df[patient_icd_df['icd_code'].isin(OUD_ICD10_CODES)]
-    
-    # Determine OUD label (1 if any OUD event found, 0 otherwise)
-    oud_label = 1 if len(oud_events) > 0 else 0
-    
-    # Additional information for analysis
-    num_oud_events = len(oud_events)
-    first_oud_date = oud_events['service_date'].min() if len(oud_events) > 0 else None
-    latest_oud_date = oud_events['service_date'].max() if len(oud_events) > 0 else None
-    
-    return {
-        'pat_id': patient_id,
-        'most_recent_date': most_recent_date,
-        'oud_label': oud_label,
-        'num_oud_events': num_oud_events,
-        'first_oud_date': first_oud_date,
-        'latest_oud_date': latest_oud_date
-    }
+    header_file = f'/sharefolder/IQVIA/header/header_claims_{year}.csv'
+    with open(header_file, 'r') as f:
+        header = f.readline().strip().split('|')
+    return header
 
-def read_icd_data():
+def check_icd_match(icd_code, icd_patterns):
     """
-    Read ICD data from IQVIA claims files
-    This function needs to be adapted based on the actual structure of your ICD data
+    Check if an ICD code matches any of the OUD patterns
     """
-    print("Loading ICD data from IQVIA claims...")
+    if pd.isna(icd_code) or icd_code == '':
+        return False
     
-    # This is a placeholder - you'll need to adapt this based on your actual ICD data structure
-    # The function should read from the same IQVIA source files but focus on ICD columns
+    icd_code = str(icd_code).strip()
     
-    icd_data_list = []
-    years = [str(year) for year in range(2006, 2023)]
+    for pattern in icd_patterns:
+        if re.match(pattern, icd_code):
+            return True
     
-    for year in years:
-        try:
-            # Attempt to read from the combined MME data which should have ICD codes
-            # If ICD codes are in separate files, adjust this path accordingly
-            year_file = f'/sharefolder/wanglab/MME/mme_data_final_{year}.csv'
-            
-            if os.path.exists(year_file):
-                # Read only relevant columns for ICD analysis
-                # Adjust column names based on actual data structure
-                year_data = pd.read_csv(year_file, usecols=['pat_id', 'service_date', 'icd_code'])
-                icd_data_list.append(year_data)
-                print(f"Loaded ICD data for year {year}")
-            else:
-                print(f"File not found for year {year}: {year_file}")
-                
-        except Exception as e:
-            print(f"Error loading data for year {year}: {str(e)}")
-            continue
-    
-    if not icd_data_list:
-        raise ValueError("No ICD data could be loaded. Please check file paths and column names.")
-    
-    # Combine all years
-    combined_icd_df = pd.concat(icd_data_list, ignore_index=True)
-    
-    # Convert service_date to datetime
-    combined_icd_df['service_date'] = pd.to_datetime(combined_icd_df['service_date'], errors='coerce')
-    
-    # Remove rows with missing ICD codes
-    combined_icd_df = combined_icd_df.dropna(subset=['icd_code'])
-    
-    print(f"Total ICD records loaded: {len(combined_icd_df)}")
-    print(f"Unique patients with ICD codes: {combined_icd_df['pat_id'].nunique()}")
-    
-    return combined_icd_df
+    return False
 
-def extract_oud_labels():
+def process_claims_file(args):
     """
-    Main function to extract OUD labels for all patients
+    Process a single claims CSV file to extract OUD labels
     """
-    global icd_df
+    file_path, header, icd_patterns, file_num, total_files = args
     
-    start_time = time.time()
+    print(f"Processing file {file_num}/{total_files}: {os.path.basename(file_path)}", flush=True)
     
-    print("Starting OUD label extraction...")
-    
-    # Load the final features dataset
-    features_path = '/sharefolder/wanglab/MME/final_features.csv'
-    if not os.path.exists(features_path):
-        raise FileNotFoundError(f"Final features file not found: {features_path}")
-    
-    features_df = pd.read_csv(features_path)
-    print(f"Loaded features for {len(features_df)} patients")
-    
-    # Load ICD data
     try:
-        icd_df = read_icd_data()
+        # Read the CSV file
+        df = pd.read_csv(file_path, sep='|', header=None, dtype=str, low_memory=False)
+        df.columns = header
+        
+        # ICD columns based on data dictionary
+        icd_columns = ['diag1', 'diag2', 'diag3', 'diag4', 'diag5']
+        
+        # Initialize results list
+        results = []
+        
+        # Process each row
+        for idx, row in df.iterrows():
+            pat_id = row['pat_id']
+            
+            # Check each diagnosis column
+            matched_codes = []
+            for col in icd_columns:
+                if col in df.columns and not pd.isna(row[col]):
+                    icd_code = str(row[col]).strip()
+                    if icd_code and check_icd_match(icd_code, icd_patterns):
+                        matched_codes.append(icd_code)
+            
+            # If any matches found, record the patient
+            if matched_codes:
+                results.append({
+                    'pat_id': pat_id,
+                    'matched_icd_codes': ','.join(matched_codes),
+                    'oud_label': 1,
+                    'service_date': row.get('from_dt', '')  # Using from_dt as service date
+                })
+        
+        print(f"File {file_num}: Found {len(results)} patients with OUD codes", flush=True)
+        return results
+        
     except Exception as e:
-        print(f"Error loading ICD data: {str(e)}")
-        print("Creating dummy labels (all patients labeled as 0 - no OUD)")
+        print(f"Error processing file {file_path}: {str(e)}", flush=True)
+        return []
+
+def extract_oud_labels_year(year='2006'):
+    """
+    Extract OUD labels for a specific year
+    """
+    print(f"\nProcessing year {year}...")
+    
+    # Load ICD patterns
+    icd_patterns, original_codes = load_oud_icd_codes('extracted_icd_codes.csv')
+    
+    # Get header
+    header = read_claims_header(year)
+    print(f"Header columns: {header[:10]}...")  # Show first 10 columns
+    
+    # Get all CSV files for the year
+    csv_dir = f'/sharefolder/IQVIA/claims_{year}/csv_in_parts'
+    csv_files = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir) if f.endswith('.csv')]
+    csv_files.sort()
+    
+    print(f"Found {len(csv_files)} CSV files to process")
+    
+    # Prepare arguments for multiprocessing
+    args_list = [(f, header, icd_patterns, i+1, len(csv_files)) 
+                 for i, f in enumerate(csv_files)]
+    
+    # Process files in parallel
+    all_results = []
+    with Pool(processes=min(cpu_count(), 8)) as pool:  # Limit to 8 processes
+        results_list = list(tqdm(
+            pool.imap(process_claims_file, args_list),
+            total=len(csv_files),
+            desc=f"Processing {year} claims files"
+        ))
         
-        # Create dummy labels if ICD data is not available
-        features_df['oud_label'] = 0
-        features_df['num_oud_events'] = 0
-        features_df['first_oud_date'] = None
-        features_df['latest_oud_date'] = None
+        # Flatten results
+        for results in results_list:
+            all_results.extend(results)
+    
+    print(f"\nTotal patients with OUD codes in {year}: {len(all_results)}")
+    
+    # Convert to DataFrame
+    if all_results:
+        oud_df = pd.DataFrame(all_results)
         
-        output_path = '/sharefolder/wanglab/MME/final_dataset_with_labels.csv'
-        features_df.to_csv(output_path, index=False)
-        print(f"Dataset with dummy labels saved to: {output_path}")
-        return features_df
-    
-    # Prepare data for multiprocessing
-    features_df['most_recent_date'] = pd.to_datetime(features_df['most_recent_date'])
-    
-    # Load existing processed labels if file exists
-    output_file_path = '/sharefolder/wanglab/MME/oud_labels.csv'
-    processed_patient_ids = []
-    if os.path.exists(output_file_path):
-        existing_data = pd.read_csv(output_file_path)
-        processed_patient_ids = existing_data['pat_id'].tolist()
-        print(f"Found {len(processed_patient_ids)} already processed patients")
-    
-    # Prepare patient data for processing
-    patient_data = [
-        (row['pat_id'], pd.to_datetime(row['most_recent_date']), processed_patient_ids) 
-        for _, row in features_df.iterrows()
-    ]
-    
-    print(f"Processing OUD labels for {len(patient_data)} patients...")
-    
-    # Use multiprocessing Pool
-    with Pool(processes=cpu_count()) as pool:
-        results = list(tqdm(pool.imap(process_patient_oud_label, patient_data), total=len(patient_data)))
-    
-    # Filter out None results
-    results = [result for result in results if result is not None]
-    
-    if results:
-        # Save OUD labels
-        oud_labels_df = pd.DataFrame(results)
+        # Remove duplicates (keep first occurrence)
+        oud_df = oud_df.drop_duplicates(subset=['pat_id'], keep='first')
+        print(f"Unique patients with OUD codes: {len(oud_df)}")
         
-        # Merge with existing data if it exists
-        if os.path.exists(output_file_path):
-            existing_data = pd.read_csv(output_file_path)
-            oud_labels_df = pd.concat([existing_data, oud_labels_df], ignore_index=True)
+        # Save year-specific results
+        output_path = f'/sharefolder/wanglab/MME/oud_patients_{year}.csv'
+        oud_df.to_csv(output_path, index=False)
+        print(f"Saved OUD patients for {year} to: {output_path}")
         
-        oud_labels_df.to_csv(output_file_path, index=False)
-        print(f"OUD labels saved to: {output_file_path}")
-        
-        # Merge with features dataset
-        final_dataset = pd.merge(
-            features_df, 
-            oud_labels_df[['pat_id', 'most_recent_date', 'oud_label', 'num_oud_events', 'first_oud_date', 'latest_oud_date']], 
-            on=['pat_id', 'most_recent_date'], 
+        return oud_df
+    else:
+        print(f"No OUD patients found in {year}")
+        return pd.DataFrame()
+
+def create_final_labels(year='2006'):
+    """
+    Create final dataset with OUD labels for all patients
+    """
+    print(f"\nCreating final labels for {year}...")
+    
+    # Load the feature dataset
+    features_path = '/sharefolder/wanglab/MME/final_features.csv'
+    if os.path.exists(features_path):
+        features_df = pd.read_csv(features_path)
+        print(f"Loaded {len(features_df)} patients from features file")
+    else:
+        print(f"Features file not found at {features_path}")
+        # Try to use the MME data as a proxy for patient list
+        mme_path = f'/sharefolder/wanglab/MME/mme_data_final_{year}.csv'
+        if os.path.exists(mme_path):
+            mme_df = pd.read_csv(mme_path, usecols=['pat_id'])
+            features_df = mme_df.drop_duplicates()
+            print(f"Using MME data - found {len(features_df)} unique patients")
+        else:
+            print("No patient list available")
+            return None
+    
+    # Load OUD patients
+    oud_path = f'/sharefolder/wanglab/MME/oud_patients_{year}.csv'
+    if os.path.exists(oud_path):
+        oud_df = pd.read_csv(oud_path)
+        oud_patients = set(oud_df['pat_id'].astype(str))
+        print(f"Loaded {len(oud_patients)} OUD patients")
+    else:
+        print("OUD patients file not found")
+        oud_patients = set()
+    
+    # Create labels
+    features_df['pat_id_str'] = features_df['pat_id'].astype(str)
+    features_df['oud_label'] = features_df['pat_id_str'].apply(
+        lambda x: 1 if x in oud_patients else 0
+    )
+    
+    # Add ICD codes for OUD patients
+    if len(oud_patients) > 0:
+        oud_df['pat_id_str'] = oud_df['pat_id'].astype(str)
+        features_df = features_df.merge(
+            oud_df[['pat_id_str', 'matched_icd_codes', 'service_date']],
+            on='pat_id_str',
             how='left'
         )
-        
-        # Fill missing labels with 0 (no OUD)
-        final_dataset['oud_label'] = final_dataset['oud_label'].fillna(0)
-        final_dataset['num_oud_events'] = final_dataset['num_oud_events'].fillna(0)
-        
-        # Save final dataset
-        final_output_path = '/sharefolder/wanglab/MME/final_dataset_with_labels.csv'
-        final_dataset.to_csv(final_output_path, index=False)
-        
-        # Print summary statistics
-        print("\nOUD Label Summary:")
-        print(f"Total patients: {len(final_dataset)}")
-        print(f"Patients with OUD: {final_dataset['oud_label'].sum()}")
-        print(f"Patients without OUD: {len(final_dataset) - final_dataset['oud_label'].sum()}")
-        print(f"OUD prevalence: {final_dataset['oud_label'].mean():.4f}")
-        
-        print(f"\nFinal dataset with labels saved to: {final_output_path}")
-        
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed Time: {elapsed_time:.2f} seconds")
+    else:
+        features_df['matched_icd_codes'] = ''
+        features_df['service_date'] = ''
     
-    return final_dataset
+    # Clean up
+    features_df = features_df.drop('pat_id_str', axis=1)
+    
+    # Summary statistics
+    print(f"\nLabel Summary for {year}:")
+    print(f"Total patients: {len(features_df)}")
+    print(f"Patients with OUD (label=1): {features_df['oud_label'].sum()}")
+    print(f"Patients without OUD (label=0): {len(features_df) - features_df['oud_label'].sum()}")
+    print(f"OUD prevalence: {features_df['oud_label'].mean():.4%}")
+    
+    # Save final labeled dataset
+    output_path = f'/sharefolder/wanglab/MME/final_dataset_with_labels_{year}.csv'
+    features_df.to_csv(output_path, index=False)
+    print(f"\nFinal labeled dataset saved to: {output_path}")
+    
+    return features_df
 
-if __name__ == "__main__":
+def main():
+    """
+    Main function to extract OUD labels
+    """
+    start_time = time.time()
+    
+    print("="*80)
+    print("OUD LABEL EXTRACTION FROM CLAIMS DATA")
+    print("="*80)
+    
+    # Process year 2006 first as requested
+    year = '2006'
+    
     try:
-        final_dataset = extract_oud_labels()
-        print("OUD label extraction completed successfully!")
+        # Extract OUD patients from claims
+        oud_df = extract_oud_labels_year(year)
         
-        # Display final dataset info
-        print(f"\nFinal dataset shape: {final_dataset.shape}")
-        print(f"Columns: {list(final_dataset.columns)}")
+        # Create final labeled dataset
+        final_df = create_final_labels(year)
+        
+        if final_df is not None:
+            # Display sample of OUD patients
+            print("\nSample of patients with OUD:")
+            oud_sample = final_df[final_df['oud_label'] == 1].head(10)
+            if len(oud_sample) > 0:
+                print(oud_sample[['pat_id', 'matched_icd_codes', 'oud_label']])
+            else:
+                print("No OUD patients found in sample")
         
     except Exception as e:
-        print(f"Error during OUD label extraction: {str(e)}")
-        raise
+        print(f"Error during processing: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"\nTotal processing time: {elapsed_time/60:.2f} minutes")
+    
+    print("\nExtraction complete!")
+    print("Next steps:")
+    print("1. Review the oud_patients_2006.csv file for OUD cases")
+    print("2. Check final_dataset_with_labels_2006.csv for the complete labeled dataset")
+    print("3. Run for other years (2007-2022) as needed")
+
+if __name__ == "__main__":
+    main()
