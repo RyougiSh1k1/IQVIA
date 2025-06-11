@@ -6,4 +6,8 @@
 #SBATCH --output=5_merge_features.out
 #SBATCH --error=5_merge_features.err
 
+# Load the anaconda3 module
+module load anaconda3/current
+
+# Run the script
 srun python 5_merge_features.py > 5_merge_features.log

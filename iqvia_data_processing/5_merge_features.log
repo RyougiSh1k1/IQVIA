@@ -1,0 +1,78 @@
+Starting feature merge process...
+Loading MME features...
+MME features loaded: 3851892 rows, 6 columns
+MME columns: ['pat_id', 'most_recent_date', 'MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year', 'MME_120_2_years']
+
+Loading prescriber features...
+Prescriber features loaded: 3852559 rows, 6 columns
+Prescriber columns: ['pat_id', 'most_recent_date', 'start_date_180_days', 'start_date_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days']
+
+Common patients between datasets: 3851892
+
+Merging datasets on pat_id and most_recent_date...
+Merged dataset shape: 3851434 rows, 10 columns
+Merged columns: ['pat_id', 'most_recent_date', 'MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year', 'MME_120_2_years', 'start_date_180_days', 'start_date_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days']
+
+Feature Summary Statistics:
+
+MME_last_365_days:
+  Mean: 103.35
+  Median: 46.25
+  Std: 276.85
+  Min: 0.01
+  Max: 53732.32
+  Missing: 0
+
+MME_last_2_years:
+  Mean: 132.31
+  Median: 50.00
+  Std: 426.73
+  Min: 0.01
+  Max: 106982.32
+  Missing: 0
+
+MME_prior_1_year:
+  Mean: 85.99
+  Median: 0.00
+  Std: 675.00
+  Min: 0.00
+  Max: 359885.23
+  Missing: 0
+
+MME_120_2_years:
+  Mean: 0.00
+  Median: 0.00
+  Std: 0.11
+  Min: 0.00
+  Max: 142.00
+  Missing: 0
+
+prscbr_last_2_years:
+  Mean: 1.30
+  Median: 1.00
+  Std: 0.84
+  Min: 1.00
+  Max: 59.00
+  Missing: 0
+
+prscrbr_last_180_days:
+  Mean: 1.14
+  Median: 1.00
+  Std: 0.48
+  Min: 1.00
+  Max: 28.00
+  Missing: 0
+
+Final features saved to: /sharefolder/wanglab/MME/final_features.csv
+Total patients in final dataset: 3851434
+
+Creating dataset with dummy labels for testing...
+Dataset with dummy labels saved to: /sharefolder/wanglab/MME/final_dataset_with_labels.csv
+Note: Replace with actual ICD-based labels when available
+
+Elapsed Time: 46.40 seconds
+
+Feature merge completed successfully!
+Next steps:
+1. Run 6_extract_OUD_labels.py when ICD data is available
+2. Or run simple_test.py to test ML models with dummy labels

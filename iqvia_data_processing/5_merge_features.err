@@ -1,5 +1,0 @@
-  File "5_merge_features.py", line 89
-    print(f"Processing patient: {patient_id}", flush=True)
-srun: error: node008: task 0: Exited with exit code 1
-                                            ^
-SyntaxError: invalid syntax
