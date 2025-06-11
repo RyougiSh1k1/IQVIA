@@ -1,15 +1,23 @@
-Searching for IQVIA claims files...
-============================================================
+Debugging IQVIA claims file access...
+================================================================================
 
-Contents of /sharefolder/IQVIA:
-  Permission denied
+Checking: /sharefolder/IQVIA/claims_2006/csv_in_parts
+✓ Path exists
+✓ Is a directory
+✗ Permission denied when listing contents: [Errno 13] Permission denied: '/sharefolder/IQVIA/claims_2006/csv_in_parts'
 
-------------------------------------------------------------
-Checking for filtered data in wanglab:
-Found 17 filtered IQVIA files:
-  - iqvia_ndc_2006.csv
-  - iqvia_ndc_2007.csv
-  - iqvia_ndc_2008.csv
-  - iqvia_ndc_2009.csv
-  - iqvia_ndc_2010.csv
-  ... and 12 more files
+Checking: /sharefolder/IQVIA/claims_2006
+✓ Path exists
+✓ Is a directory
+✗ Permission denied when listing contents: [Errno 13] Permission denied: '/sharefolder/IQVIA/claims_2006'
+
+Checking: /sharefolder/IQVIA/2006
+✗ Path does not exist
+
+Checking: /sharefolder/IQVIA
+✓ Path exists
+✓ Is a directory
+✗ Permission denied when listing contents: [Errno 13] Permission denied: '/sharefolder/IQVIA'
+
+--------------------------------------------------------------------------------
+Attempting to read a sample claims file...

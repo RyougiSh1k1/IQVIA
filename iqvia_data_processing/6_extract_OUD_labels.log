@@ -1,15 +1,37 @@
 ================================================================================
-IQVIA OUD LABEL EXTRACTION
+CREATING OUD LABEL TEMPLATE FROM FILTERED DATA
 ================================================================================
-Loading OUD ICD codes...
-Loaded ICD codes from: extracted_icd_codes.csv
-Found 229 unique ICD codes
 
-Sample ICD patterns: ['^96500$', '^96501$', '^96509$', '^E8500$', '^E8501$']
-Loading header for year 2006...
-Loaded 62 columns from: /home/qinyu@chapman.edu/IQVIA/iqvia_data_processing/header/header_claims_2006.csv
+NOTE: This creates a template only, since we cannot access ICD codes
+from the filtered prescription files.
+Processing filtered data for year 2006...
+Reading filtered prescriptions from: /sharefolder/wanglab/iqvia_ndc_2006.csv
+Found 353704 unique patients with opioid prescriptions
+Saved patient list to: /sharefolder/wanglab/MME/patient_list_2006.csv
 
-Headers: ['pat_id', 'claimno', 'linenum', 'rectype', 'tos_flag', 'pos', 'conf_num', 'patstat', 'billtype', 'ndc']... (showing first 10)
+Merging with feature dataset...
+Created template dataset: /sharefolder/wanglab/MME/final_dataset_template_2006.csv
+Total patients: 3851434
 
-Found 0 CSV files to process
-ERROR: No CSV files found
+NOTE: OUD labels are all set to 0. You need to:
+1. Get access to claims files with ICD codes
+2. Run the full OUD extraction script
+3. Or manually match ICD codes if you have them from another source
+
+================================================================================
+NEXT STEPS:
+================================================================================
+To get actual OUD labels, you need to either:
+
+1. Get read access to /sharefolder/IQVIA/claims_2006/csv_in_parts/
+   - Contact your system administrator
+   - Or run the extraction script from a location with proper permissions
+
+2. Extract ICD codes separately:
+   - Create a script that only extracts pat_id and diag1-5 columns
+   - Run it with appropriate permissions
+   - Match against your ICD code list
+
+3. Use an alternative data source for OUD diagnoses
+
+Total time: 25.6 seconds
