@@ -1,15 +1,16 @@
 ================================================================================
-IQVIA OUD LABEL EXTRACTION
+OUD LABEL EXTRACTION FROM CLAIMS DATA
+Using read_iqvia module approach
 ================================================================================
+
+Processing year 2006...
 Loading OUD ICD codes...
 Loaded ICD codes from: extracted_icd_codes.csv
 Found 229 unique ICD codes
-
 Sample ICD patterns: ['^96500$', '^96501$', '^96509$', '^E8500$', '^E8501$']
-Loading header for year 2006...
-Loaded 62 columns from: /home/qinyu@chapman.edu/IQVIA/iqvia_data_processing/header/header_claims_2006.csv
+Error using read_header: [Errno 13] Permission denied: '/sharefolder/IQVIA/header'
+Loaded header from: ./header/header_claims_2006.csv
+Header columns (62): ['pat_id', 'claimno', 'linenum', 'rectype', 'tos_flag', 'pos', 'conf_num', 'patstat', 'billtype', 'ndc']...
+Permission denied accessing directory: [Errno 13] Permission denied: '/sharefolder/IQVIA/claims_2006/csv_in_parts'
 
-Headers: ['pat_id', 'claimno', 'linenum', 'rectype', 'tos_flag', 'pos', 'conf_num', 'patstat', 'billtype', 'ndc']... (showing first 10)
-
-Found 0 CSV files to process
-ERROR: No CSV files found
+Total time: 0.0 minutes

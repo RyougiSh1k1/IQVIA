@@ -1,11 +1,10 @@
 """
 Extract OUD labels from IQVIA claims files by matching ICD codes.
-This script processes claims data to identify patients with Opioid Use Disorder.
+Uses the same file access approach as 0_filter_data.py through read_iqvia module.
 
 Input:
 - extracted_icd_codes.csv: List of OUD-related ICD codes (with X/x as wildcards)
-- header_claims_2006.csv: Header file with column names
-- /sharefolder/IQVIA/claims_2006/csv_in_parts/*.csv: Claims data files
+- IQVIA claims files accessed through read_iqvia module
 
 Output:
 - oud_patients_2006.csv: Patients with OUD (pat_id, matched_icd_codes, oud_label=1)
@@ -17,9 +16,19 @@ import numpy as np
 import os
 import re
 import time
-from glob import glob
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
+import sys
+
+# Add the current directory to Python path to import read_iqvia
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Import the read_iqvia module that 0_filter_data.py uses
+try:
+    from read_iqvia import read_header
+except ImportError:
+    print("Warning: Could not import read_iqvia module, using fallback method")
+    read_header = None
 
 def load_icd_codes(filepath='extracted_icd_codes.csv'):
     """Load OUD ICD codes and convert wildcards to regex patterns"""
@@ -62,36 +71,41 @@ def load_icd_codes(filepath='extracted_icd_codes.csv'):
     
     return patterns, icd_codes
 
-def load_header(year='2006'):
-    """Load column headers for claims files"""
-    print(f"Loading header for year {year}...")
+def get_header_for_year(year='2006'):
+    """Get header using the same method as read_iqvia.py"""
     
-    # Try multiple locations
-    header_files = [
-        f'header_claims_{year}.csv',
-        f'./header_claims_{year}.csv',
-        f'/home/qinyu@chapman.edu/IQVIA/iqvia_data_processing/header/header_claims_{year}.csv',
+    # First try using the imported function
+    if read_header is not None:
+        try:
+            header_data = read_header()
+            if year in header_data:
+                return header_data[year]
+        except Exception as e:
+            print(f"Error using read_header: {e}")
+    
+    # Fallback: read directly
+    header_folder = '/sharefolder/IQVIA/header'
+    header_file = f'header_claims_{year}.csv'
+    
+    # Try local copy first
+    local_paths = [
+        f'./{header_file}',
+        f'./header/{header_file}',
+        os.path.join(header_folder, header_file)
     ]
     
-    for header_file in header_files:
-        if os.path.exists(header_file):
+    for path in local_paths:
+        if os.path.exists(path):
             try:
-                with open(header_file, 'r') as f:
-                    content = f.read().strip()
-                    # Handle pipe-delimited
-                    if '|' in content:
-                        headers = content.split('|')
-                    else:
-                        # Handle comma-delimited
-                        headers = content.split(',')
-                    
-                print(f"Loaded {len(headers)} columns from: {header_file}")
-                return headers
+                with open(path, 'r') as f:
+                    header = f.readline().strip().split('|')
+                print(f"Loaded header from: {path}")
+                return header
             except Exception as e:
-                print(f"Error reading {header_file}: {e}")
+                continue
     
-    # Default headers based on data dictionary
-    print("Using default headers from data dictionary...")
+    # Default header based on data dictionary
+    print("Using default header based on data dictionary...")
     return [
         'pat_id', 'pat_gender', 'pat_yob', 'pat_zip3', 'evt_typ',
         'from_dt', 'to_dt', 'dayssup', 'clmid', 'ndc', 'qty',
@@ -115,108 +129,116 @@ def check_icd_match(icd_value, patterns):
     
     return False
 
-def process_single_file(args):
-    """Process one claims CSV file"""
-    filepath, headers, patterns, file_idx, total_files = args
+def process_csv_part(args):
+    """Process a single CSV part file"""
+    file_path, header, patterns, part_num, total_parts = args
     
-    filename = os.path.basename(filepath)
-    print(f"[{file_idx}/{total_files}] Processing {filename}...", flush=True)
+    print(f"Processing part {part_num}/{total_parts}...", flush=True)
     
     try:
-        # Read CSV file
-        df = pd.read_csv(filepath, sep='|', header=None, dtype=str, low_memory=False)
-        
-        # Assign column names
-        if len(df.columns) == len(headers):
-            df.columns = headers
-        else:
-            print(f"Warning: Column count mismatch in {filename}")
-            print(f"Expected {len(headers)} columns, got {len(df.columns)}")
-            return []
+        # Read CSV file - same approach as read_iqvia_claims
+        data_part = pd.read_csv(file_path, sep='|', header=None, dtype=str)
+        data_part.columns = header
         
         # Diagnosis columns to check
         diag_cols = ['diag1', 'diag2', 'diag3', 'diag4', 'diag5']
+        available_diag_cols = [col for col in diag_cols if col in data_part.columns]
+        
+        if not available_diag_cols:
+            print(f"Warning: No diagnosis columns found in part {part_num}")
+            return []
         
         # Find patients with OUD codes
         oud_patients = []
         
-        for _, row in df.iterrows():
-            matched_codes = []
+        # Process in chunks for memory efficiency
+        chunk_size = 10000
+        for start_idx in range(0, len(data_part), chunk_size):
+            chunk = data_part.iloc[start_idx:start_idx + chunk_size]
             
-            # Check each diagnosis column
-            for col in diag_cols:
-                if col in df.columns:
+            for _, row in chunk.iterrows():
+                matched_codes = []
+                
+                # Check each diagnosis column
+                for col in available_diag_cols:
                     icd_val = row.get(col, '')
                     if check_icd_match(icd_val, patterns):
                         matched_codes.append(str(icd_val).strip())
-            
-            # If OUD codes found, record the patient
-            if matched_codes:
-                oud_patients.append({
-                    'pat_id': str(row['pat_id']),
-                    'matched_icd_codes': '|'.join(matched_codes),
-                    'service_date': row.get('from_dt', ''),
-                    'oud_label': 1
-                })
+                
+                # If OUD codes found, record the patient
+                if matched_codes:
+                    oud_patients.append({
+                        'pat_id': str(row['pat_id']),
+                        'matched_icd_codes': '|'.join(matched_codes),
+                        'service_date': row.get('from_dt', ''),
+                        'oud_label': 1
+                    })
         
-        print(f"[{file_idx}/{total_files}] Found {len(oud_patients)} OUD patients in {filename}", flush=True)
+        print(f"Part {part_num}: Found {len(oud_patients)} OUD patients", flush=True)
         return oud_patients
         
     except Exception as e:
-        print(f"Error processing {filename}: {e}", flush=True)
+        print(f"Error processing part {part_num}: {e}", flush=True)
         return []
 
-def main():
-    """Main processing function"""
-    start_time = time.time()
-    year = '2006'
+def extract_oud_labels_year(year='2006'):
+    """Extract OUD labels for a specific year using the same approach as 0_filter_data.py"""
     
-    print("="*80)
-    print("IQVIA OUD LABEL EXTRACTION")
-    print("="*80)
+    print(f"\nProcessing year {year}...")
     
     # Load ICD patterns
+    patterns, original_codes = load_icd_codes('extracted_icd_codes.csv')
+    print(f"Sample ICD patterns: {patterns[:5]}")
+    
+    # Get header
+    header = get_header_for_year(year)
+    print(f"Header columns ({len(header)}): {header[:10]}...")
+    
+    # Get list of claims files using os.listdir (same as read_iqvia.py)
+    claims_folder = '/sharefolder/IQVIA'  
+    year_folder = os.path.join(claims_folder, f'claims_{year}')
+    csv_in_parts_folder = os.path.join(year_folder, 'csv_in_parts')
+    
+    if not os.path.exists(csv_in_parts_folder):
+        print(f"ERROR: Directory not found: {csv_in_parts_folder}")
+        return None
+    
     try:
-        patterns, original_codes = load_icd_codes()
-        print(f"\nSample ICD patterns: {patterns[:5]}")
+        # Use os.listdir instead of glob
+        csv_files = [file for file in os.listdir(csv_in_parts_folder) if file.endswith('.csv')]
+        csv_files.sort()  # Sort for consistent ordering
+        
+        # Create full paths
+        csv_file_paths = [os.path.join(csv_in_parts_folder, file) for file in csv_files]
+        
+        print(f"Found {len(csv_files)} CSV files to process")
+        
+        if not csv_files:
+            print("No CSV files found!")
+            return None
+            
+        # Show first few files
+        print(f"First few files: {csv_files[:3]}")
+        
+    except PermissionError as e:
+        print(f"Permission denied accessing directory: {e}")
+        return None
     except Exception as e:
-        print(f"ERROR: Failed to load ICD codes: {e}")
-        return
+        print(f"Error listing directory: {e}")
+        return None
     
-    # Load headers
-    headers = load_header(year)
-    print(f"\nHeaders: {headers[:10]}... (showing first 10)")
+    # Process files using multiprocessing
+    args_list = [(f, header, patterns, i+1, len(csv_file_paths)) 
+                 for i, f in enumerate(csv_file_paths)]
     
-    # Get list of claims files
-    claims_dir = f'/sharefolder/IQVIA/claims_{year}/csv_in_parts'
-    if not os.path.exists(claims_dir):
-        print(f"ERROR: Claims directory not found: {claims_dir}")
-        return
-    
-    csv_files = sorted(glob(os.path.join(claims_dir, '*.csv')))
-    print(f"\nFound {len(csv_files)} CSV files to process")
-    
-    if not csv_files:
-        print("ERROR: No CSV files found")
-        return
-    
-    # Process files in parallel
-    print("\nProcessing claims files...")
-    pool_size = min(cpu_count(), 8)  # Limit parallel processes
-    
-    # Prepare arguments for multiprocessing
-    process_args = [
-        (csv_file, headers, patterns, i+1, len(csv_files))
-        for i, csv_file in enumerate(csv_files)
-    ]
-    
-    # Process with progress bar
     all_oud_patients = []
-    with Pool(processes=pool_size) as pool:
+    
+    # Use fewer processes to avoid permission issues
+    with Pool(processes=min(4, cpu_count())) as pool:
         results = list(tqdm(
-            pool.imap(process_single_file, process_args),
-            total=len(csv_files),
-            desc="Processing files"
+            pool.imap(process_csv_part, args_list),
+            total=len(csv_file_paths),
+            desc=f"Processing {year} claims"
         ))
         
         # Combine results
@@ -226,89 +248,71 @@ def main():
     
     print(f"\nTotal OUD records found: {len(all_oud_patients)}")
     
-    # Create DataFrame and remove duplicates
     if all_oud_patients:
+        # Create DataFrame and remove duplicates
         oud_df = pd.DataFrame(all_oud_patients)
-        
-        # Remove duplicates (keep first occurrence per patient)
         oud_df = oud_df.drop_duplicates(subset=['pat_id'], keep='first')
         print(f"Unique OUD patients: {len(oud_df)}")
         
-        # Save OUD patients
-        oud_output = f'oud_patients_{year}.csv'
-        oud_df.to_csv(oud_output, index=False)
-        print(f"\nSaved OUD patients to: {oud_output}")
+        # Save results
+        output_path = f'/sharefolder/wanglab/MME/oud_patients_{year}.csv'
+        oud_df.to_csv(output_path, index=False)
+        print(f"Saved OUD patients to: {output_path}")
         
-        # Display sample
-        print("\nSample of OUD patients:")
-        print(oud_df.head(10))
+        return oud_df
     else:
-        print("No OUD patients found!")
-        oud_df = pd.DataFrame(columns=['pat_id', 'matched_icd_codes', 'service_date', 'oud_label'])
+        print("No OUD patients found")
+        return pd.DataFrame()
+
+def main():
+    """Main function"""
+    start_time = time.time()
     
-    # Create all patients file with labels
-    print("\nCreating complete patient list with labels...")
+    print("="*80)
+    print("OUD LABEL EXTRACTION FROM CLAIMS DATA")
+    print("Using read_iqvia module approach")
+    print("="*80)
     
-    # Get all unique patients from claims files (sampling approach for efficiency)
-    all_patients = set()
+    year = '2006'
     
-    # Sample first few files to get patient list
-    sample_size = min(10, len(csv_files))
-    print(f"Sampling {sample_size} files to build patient list...")
-    
-    for i, csv_file in enumerate(csv_files[:sample_size]):
-        try:
-            df_sample = pd.read_csv(csv_file, sep='|', header=None, 
-                                   usecols=[0], dtype=str, low_memory=False)
-            all_patients.update(df_sample[0].unique())
-            print(f"Processed sample {i+1}/{sample_size}, total patients so far: {len(all_patients)}")
-        except Exception as e:
-            print(f"Error sampling file: {e}")
-    
-    # Create final dataset
-    oud_patient_ids = set(oud_df['pat_id'].astype(str))
-    
-    final_data = []
-    for pat_id in all_patients:
-        if str(pat_id) in oud_patient_ids:
-            # Get OUD info
-            oud_info = oud_df[oud_df['pat_id'] == str(pat_id)].iloc[0]
-            final_data.append({
-                'pat_id': pat_id,
-                'oud_label': 1,
-                'matched_icd_codes': oud_info['matched_icd_codes'],
-                'service_date': oud_info['service_date']
-            })
-        else:
-            final_data.append({
-                'pat_id': pat_id,
-                'oud_label': 0,
-                'matched_icd_codes': '',
-                'service_date': ''
-            })
-    
-    # Save final dataset
-    final_df = pd.DataFrame(final_data)
-    final_output = f'all_patients_with_labels_{year}.csv'
-    final_df.to_csv(final_output, index=False)
-    print(f"\nSaved all patients with labels to: {final_output}")
-    
-    # Summary statistics
-    print("\n" + "="*50)
-    print("SUMMARY STATISTICS")
-    print("="*50)
-    print(f"Total patients processed: {len(final_df)}")
-    print(f"Patients with OUD (label=1): {final_df['oud_label'].sum()}")
-    print(f"Patients without OUD (label=0): {len(final_df) - final_df['oud_label'].sum()}")
-    print(f"OUD prevalence: {final_df['oud_label'].mean():.2%}")
+    try:
+        # Extract OUD patients
+        oud_df = extract_oud_labels_year(year)
+        
+        if oud_df is not None and len(oud_df) > 0:
+            # Create final dataset with labels
+            print("\nCreating labeled dataset...")
+            
+            # Load the feature dataset to get all patients
+            features_path = '/sharefolder/wanglab/MME/final_features.csv'
+            if os.path.exists(features_path):
+                features_df = pd.read_csv(features_path)
+                print(f"Loaded {len(features_df)} patients from features file")
+                
+                # Add OUD labels
+                oud_patients = set(oud_df['pat_id'].astype(str))
+                features_df['oud_label'] = features_df['pat_id'].astype(str).apply(
+                    lambda x: 1 if x in oud_patients else 0
+                )
+                
+                # Save final labeled dataset
+                output_path = f'/sharefolder/wanglab/MME/final_dataset_with_labels_{year}.csv'
+                features_df.to_csv(output_path, index=False)
+                print(f"Saved final labeled dataset to: {output_path}")
+                
+                # Summary
+                print(f"\nSummary:")
+                print(f"Total patients: {len(features_df)}")
+                print(f"OUD patients: {features_df['oud_label'].sum()}")
+                print(f"OUD prevalence: {features_df['oud_label'].mean():.2%}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
     
     elapsed = time.time() - start_time
-    print(f"\nTotal processing time: {elapsed/60:.1f} minutes")
-    
-    print("\n✅ Processing complete!")
-    print("Output files:")
-    print(f"  1. {oud_output} - Patients with OUD diagnoses")
-    print(f"  2. {final_output} - All patients with OUD labels")
+    print(f"\nTotal time: {elapsed/60:.1f} minutes")
 
 if __name__ == "__main__":
     main()
