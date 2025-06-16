@@ -207,7 +207,7 @@ def validate_merged_dataset():
             dtype = df[col].dtype
             print(f"  {col}: {dtype}")
             if col == 'oud_label' and dtype not in ['int64', 'int32']:
-                print(f"    ⚠️  Warning: oud_label should be integer type")
+                print(f"  Warning: oud_label should be integer type")
         
         # Check value ranges
         print("\nValue range validation:")
@@ -231,7 +231,7 @@ def validate_merged_dataset():
         # Check for duplicates
         duplicates = df.duplicated(subset=['pat_id', 'most_recent_date']).sum()
         if duplicates > 0:
-            print(f"\n⚠️  Warning: {duplicates} duplicate patient records found")
+            print(f"\n Warning: {duplicates} duplicate patient records found")
         else:
             print("\n✓ No duplicate patient records")
         
