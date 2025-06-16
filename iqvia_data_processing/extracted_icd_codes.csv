@@ -1,0 +1,230 @@
+Category,ICD_Code
+Opioid poisoning,96500
+Opioid poisoning,96501
+Opioid poisoning,96509
+Opioid poisoning,E8500
+Opioid poisoning,E8501
+Opioid poisoning,E8502
+Opioid poisoning,E9350
+Opioid poisoning,E9351
+Opioid poisoning,E9352
+Opioid poisoning,T400X1A
+Opioid poisoning,T400X2A
+Opioid poisoning,T400X3A
+Opioid poisoning,T400X4A
+Opioid poisoning,T401X1A
+Opioid poisoning,T401X2A
+Opioid poisoning,T401X3A
+Opioid poisoning,T401X4A
+Opioid poisoning,T402X1A
+Opioid poisoning,T402X2A
+Opioid poisoning,T402X3A
+Opioid poisoning,T402X4A
+Opioid poisoning,T403X1A
+Opioid poisoning,T403X2A
+Opioid poisoning,T403X3A
+Opioid poisoning,T403X4A
+Opioid poisoning,T404X1A
+Opioid poisoning,T404X2A
+Opioid poisoning,T404X3A
+Opioid poisoning,T404X4A
+Opioid poisoning,T40601A
+Opioid poisoning,T40602A
+Opioid poisoning,T40603A
+Opioid poisoning,T40604A
+Opioid poisoning,T40691A
+Opioid poisoning,T40692A
+Opioid poisoning,T40693A
+Opioid poisoning,T40694A
+Opioid-related adverse effects,99529
+Opioid-related adverse effects,T400X5A
+Opioid-related adverse effects,T402X5A
+Opioid-related adverse effects,T403X5A
+Opioid-related adverse effects,T404X5A
+Respiratory adverse effects,51851
+Respiratory adverse effects,51881
+Respiratory adverse effects,51882
+Respiratory adverse effects,78603
+Respiratory adverse effects,79901
+Respiratory adverse effects,79902
+Respiratory adverse effects,7991
+Respiratory adverse effects,J9600
+Respiratory adverse effects,J9601
+Respiratory adverse effects,J9602
+Respiratory adverse effects,J9690
+Respiratory adverse effects,J9691
+Respiratory adverse effects,J9692
+Respiratory adverse effects,R0681
+Respiratory adverse effects,R0901
+Respiratory adverse effects,R0902
+Respiratory adverse effects,R092
+Respiratory adverse effects,R0603
+Respiratory adverse effects,J80
+Central Nervous System adverse effects,78001
+Central Nervous System adverse effects,78002
+Central Nervous System adverse effects,78009
+Central Nervous System adverse effects,78097
+Central Nervous System adverse effects,R4020
+Central Nervous System adverse effects,R404
+Central Nervous System adverse effects,R400
+Central Nervous System adverse effects,R4182
+Accidents,E800
+Accidents,E801
+Accidents,E802
+Accidents,E803
+Accidents,E804
+Accidents,E805
+Accidents,E806
+Accidents,E807
+Accidents,E810
+Accidents,E811
+Accidents,E812
+Accidents,E813
+Accidents,E814
+Accidents,E815
+Accidents,E816
+Accidents,E817
+Accidents,E818
+Accidents,E819
+Accidents,E820
+Accidents,E821
+Accidents,E822
+Accidents,E823
+Accidents,E824
+Accidents,E825
+Accidents,E826
+Accidents,E827
+Accidents,E828
+Accidents,E829
+Accidents,E830
+Accidents,E831
+Accidents,E832
+Accidents,E833
+Accidents,E834
+Accidents,E835
+Accidents,E836
+Accidents,E837
+Accidents,E838
+Accidents,E840
+Accidents,E841
+Accidents,E842
+Accidents,E843
+Accidents,E844
+Accidents,E845
+Accidents,E846
+Accidents,E847
+Accidents,E848
+Accidents,E849
+Accidents,E880
+Accidents,E881
+Accidents,E882
+Accidents,E883
+Accidents,E884
+Accidents,E885
+Accidents,E886
+Accidents,E887
+Accidents,E888
+Accidents,E890
+Accidents,E891
+Accidents,E892
+Accidents,E893
+Accidents,E894
+Accidents,E895
+Accidents,E896
+Accidents,E897
+Accidents,E8980
+Accidents,E8981
+Accidents,E899
+Accidents,E900
+Accidents,E901
+Accidents,E902
+Accidents,E903
+Accidents,E904
+Accidents,E905
+Accidents,E906
+Accidents,E907
+Accidents,E908
+Accidents,E909
+Accidents,E910
+Accidents,E911
+Accidents,E912
+Accidents,E913
+Accidents,E914
+Accidents,E915
+Accidents,E916
+Accidents,E917
+Accidents,E918
+Accidents,E919
+Accidents,E920
+Accidents,E921
+Accidents,E922
+Accidents,E923
+Accidents,E924
+Accidents,E925
+Accidents,E926
+Accidents,E927
+Accidents,E928
+Accidents,E9830
+Accidents,E985
+Accidents,E986
+Accidents,E987
+Accidents,E988
+Accidents,V87
+Violence-related injuries,E9600
+Violence-related injuries,E9601
+Violence-related injuries,E9620
+Violence-related injuries,E963
+Violence-related injuries,E965
+Violence-related injuries,E966
+Violence-related injuries,E967
+Violence-related injuries,E968
+Violence-related injuries,E970
+Violence-related injuries,E971
+Violence-related injuries,E973
+Violence-related injuries,E974
+Violence-related injuries,E975
+Violence-related injuries,E976
+Violence-related injuries,E977
+Violence-related injuries,X93XXXA
+Violence-related injuries,X940XXA
+Violence-related injuries,X941XXA
+Violence-related injuries,X942XXA
+Violence-related injuries,X9501XA
+Violence-related injuries,X959XXA
+Violence-related injuries,X960XXA
+Violence-related injuries,X961XXA
+Violence-related injuries,X962XXA
+Violence-related injuries,X968XXA
+Violence-related injuries,X969XXA
+Violence-related injuries,X97XXXA
+Violence-related injuries,X982XXA
+Violence-related injuries,X999XXA
+Violence-related injuries,Y00XXXA
+Violence-related injuries,Y01XXXA
+Violence-related injuries,Y030XXA
+Violence-related injuries,Y040XXA
+Violence-related injuries,Y041XXA
+Violence-related injuries,Y048XXA
+Violence-related injuries,Y0701
+Violence-related injuries,Y0711
+Violence-related injuries,Y0712
+Violence-related injuries,Y07410
+Violence-related injuries,Y07499
+Violence-related injuries,Y0750
+Violence-related injuries,Y0759
+Violence-related injuries,Y079
+Violence-related injuries,Y0889XA
+Violence-related injuries,Y09
+Violence-related injuries,Y35003A
+Violence-related injuries,Y35003S
+Violence-related injuries,Y35103A
+Violence-related injuries,Y35103S
+Violence-related injuries,Y35203S
+Violence-related injuries,Y35303A
+Violence-related injuries,Y35303S
+Violence-related injuries,Y35403A
+Violence-related injuries,Y35403S
+Violence-related injuries,Y35893A
+Violence-related injuries,Y35893S
+Violence-related injuries,Y3593XA
+Violence-related injuries,Y3593XS
