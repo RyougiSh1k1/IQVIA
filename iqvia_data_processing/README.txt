@@ -49,6 +49,26 @@ Things to do Next:
   - **Input**: `mme_data_final_combined.csv`
   - **Output**: `prscbr_features.csv`
 
+- **`5_merge_features.py`**: Merge MME and Prescriber features.
+  - **Input**: 
+  - **Output**: 
+
+- **`6_extract_OUD_labels.py`**: Assign OUD labels (0/1) based on the matching results of ICD codes.
+  - **Input**: 
+  - **Output**: 
+
+- **`7_merge_OUD.py`**: Merge OUD labels with input predictive features.
+  - **Input**: 
+  - **Output**: 
+
+- **`8_ML_training.py`**: Train 3 ML models (LR, RF, XGBoost) usign cross-entropy loss.
+  - **Input**: 
+  - **Output**:
+
+- **`9_NN_training.py`**: Train 3 NN models usign cross-entropy loss.
+  - **Input**: 
+  - **Output**: 
+
 - **`fix_MME.py`**: Applies any necessary adjustments to the final MME dataset.
   - **Input**: `mme_data_final_combined.csv`
   - **Output**: *overwrites `mme_data_final_combined.csv`*
