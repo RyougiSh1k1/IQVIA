@@ -1,16 +1,27 @@
 ================================================================================
 OUD LABEL EXTRACTION FROM CLAIMS DATA
-Using read_iqvia module approach
+Fixed version with proper permission handling
 ================================================================================
 
 Processing year 2006...
+================================================================================
+PERMISSION DEBUG INFORMATION
+================================================================================
+Current User ID (UID): 1019044820
+Current Group ID (GID): 1019044820
+Expected UID: 1019044820
+✓ Running under correct user context
+Current working directory: /home/qinyu@chapman.edu/IQVIA/iqvia_data_processing
+Python executable: /cm/shared/apps/anaconda3/bin/python
+================================================================================
 Loading OUD ICD codes...
 Loaded ICD codes from: extracted_icd_codes.csv
 Found 229 unique ICD codes
-Sample ICD patterns: ['^96500$', '^96501$', '^96509$', '^E8500$', '^E8501$']
-Error using read_header: [Errno 13] Permission denied: '/sharefolder/IQVIA/header'
-Loaded header from: ./header/header_claims_2006.csv
-Header columns (62): ['pat_id', 'claimno', 'linenum', 'rectype', 'tos_flag', 'pos', 'conf_num', 'patstat', 'billtype', 'ndc']...
-Permission denied accessing directory: [Errno 13] Permission denied: '/sharefolder/IQVIA/claims_2006/csv_in_parts'
+Loaded 229 ICD patterns
+✓ Have read access to: ./header/header_claims_2006.csv
+Successfully loaded header with 62 columns
+
+Checking access to: /sharefolder/IQVIA/claims_2006/csv_in_parts
+ERROR: No read/execute access to: /sharefolder/IQVIA/claims_2006/csv_in_parts
 
 Total time: 0.0 minutes
