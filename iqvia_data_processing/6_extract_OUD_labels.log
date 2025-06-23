@@ -11,6 +11,8 @@ Current User ID (UID): 1019044820
 Current Group ID (GID): 1019044820
 Expected UID: 1019044820
 ✓ Running under correct user context
+Group Membership:
+uid=1019044820(qinyu@chapman.edu) gid=1019044820(qinyu@chapman.edu) groups=1019044820(qinyu@chapman.edu),1027(iqviaaccess),1042(wanglab),1019007035(active-pois@chapman.edu),1019052711($7dtj00-47cl6e5jm5eq@chapman.edu),1222375639(m365-license-fischer-poi@chapman.edu),1222376012(gbl sas lab cures dataset users (sherry wang)@chapman.edu),1996800513(domain users@chapman.edu),1996807488(vpn users@chapman.edu)
 Current working directory: /home/qinyu@chapman.edu/IQVIA/iqvia_data_processing
 Python executable: /cm/shared/apps/anaconda3/bin/python
 ================================================================================
@@ -22,6 +24,7 @@ Loaded 229 ICD patterns
 Successfully loaded header with 62 columns
 
 Checking access to: /sharefolder/IQVIA/claims_2006/csv_in_parts
-ERROR: No read/execute access to: /sharefolder/IQVIA/claims_2006/csv_in_parts
+Found 200 accessible CSV files
+First file: part-00000-ededc353-b3dd-43db-a0fc-5206ed152940-c000.csv
 
-Total time: 0.0 minutes
+Processing with 4 parallel processes...

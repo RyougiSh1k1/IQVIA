@@ -18,6 +18,7 @@ import time
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 import sys
+import subprocess
 
 def debug_permissions():
     """Debug function to check user context and permissions"""
@@ -33,6 +34,13 @@ def debug_permissions():
     else:
         print("✓ Running under correct user context")
     
+    print("Group Membership:")
+    try:
+        result = subprocess.run(['id', '-a'], capture_output=True, text=True, check=True)
+        print(result.stdout.strip())
+    except Exception as e:
+        print(e)
+
     print(f"Current working directory: {os.getcwd()}")
     print(f"Python executable: {sys.executable}")
     print("="*80)
