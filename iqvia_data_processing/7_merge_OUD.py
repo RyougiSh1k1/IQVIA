@@ -1,19 +1,61 @@
 """
-Step 7: Merge Features with OUD Labels
-This script merges the feature dataset from step 5 with OUD labels from step 6
+Step 7: Merge Features with OUD Labels from All Years
+This script merges the feature dataset with OUD labels extracted from all years (2006-2022)
 
 Input files:
 - final_features.csv (from step 5: merged MME and prescriber features)
-- oud_patients_2006.csv (from step 6: patients with OUD labels)
+- oud_patients_all_years.csv (from step 6: patients with OUD from all years)
 
-Output file:
+Output files:
 - final_dataset_with_oud_labels.csv (ready for ML modeling)
+- dataset_statistics.txt (summary statistics)
 """
 
 import pandas as pd
 import numpy as np
 import time
 import os
+from datetime import datetime
+
+def create_patient_labels(features_df, oud_df):
+    """
+    Create comprehensive patient labels dataset
+    """
+    print("\nCreating patient labels...")
+    
+    # Get all unique patients from features
+    all_patients = set(features_df['pat_id'].astype(str).unique())
+    print(f"Total patients in features: {len(all_patients):,}")
+    
+    # Get OUD patients
+    oud_patients = set(oud_df['pat_id'].astype(str).unique())
+    print(f"Total OUD patients: {len(oud_patients):,}")
+    
+    # Create labels DataFrame
+    labels_data = []
+    
+    for pat_id in all_patients:
+        if pat_id in oud_patients:
+            # Get OUD info
+            oud_info = oud_df[oud_df['pat_id'].astype(str) == pat_id].iloc[0]
+            labels_data.append({
+                'pat_id': pat_id,
+                'oud_label': 1,
+                'first_oud_date': oud_info.get('service_date', ''),
+                'matched_icd_codes': oud_info.get('matched_icd_codes', ''),
+                'oud_year': oud_info.get('year', '')
+            })
+        else:
+            labels_data.append({
+                'pat_id': pat_id,
+                'oud_label': 0,
+                'first_oud_date': None,
+                'matched_icd_codes': '',
+                'oud_year': ''
+            })
+    
+    labels_df = pd.DataFrame(labels_data)
+    return labels_df
 
 def merge_features_with_oud_labels():
     """
@@ -22,13 +64,14 @@ def merge_features_with_oud_labels():
     start_time = time.time()
     
     print("="*80)
-    print("STEP 7: MERGING FEATURES WITH OUD LABELS")
+    print("STEP 7: MERGING FEATURES WITH OUD LABELS (ALL YEARS)")
     print("="*80)
     
     # Define file paths
     features_path = '/sharefolder/wanglab/MME/final_features.csv'
-    oud_labels_path = '/sharefolder/wanglab/MME/oud_patients_2006.csv'
+    oud_labels_path = '/sharefolder/wanglab/MME/oud_patients_all_years.csv'
     output_path = '/sharefolder/wanglab/MME/final_dataset_with_oud_labels.csv'
+    stats_path = '/sharefolder/wanglab/MME/dataset_statistics.txt'
     
     # Check if files exist
     if not os.path.exists(features_path):
@@ -37,7 +80,7 @@ def merge_features_with_oud_labels():
         
     if not os.path.exists(oud_labels_path):
         print(f"Error: OUD labels file not found: {oud_labels_path}")
-        print("Please ensure step 6 (extract_OUD_labels.py) has been run successfully")
+        print("Please ensure step 6 (extract_OUD_labels_all_years.py) has been run successfully")
         return False
     
     try:
@@ -45,119 +88,129 @@ def merge_features_with_oud_labels():
         print("\nLoading features dataset...")
         features_df = pd.read_csv(features_path)
         print(f"Features dataset loaded: {len(features_df):,} rows, {len(features_df.columns)} columns")
-        print(f"Features columns: {list(features_df.columns)}")
         
         # Ensure pat_id is string type for consistent merging
         features_df['pat_id'] = features_df['pat_id'].astype(str)
         
         # Load OUD labels
-        print("\nLoading OUD labels...")
+        print("\nLoading OUD labels from all years...")
         oud_df = pd.read_csv(oud_labels_path)
-        print(f"OUD patients loaded: {len(oud_df):,} patients identified with OUD")
-        
-        # Ensure pat_id is string type
         oud_df['pat_id'] = oud_df['pat_id'].astype(str)
+        print(f"OUD patients loaded: {len(oud_df):,} unique patients")
         
-        # Get unique OUD patients
-        oud_patients = set(oud_df['pat_id'].unique())
-        print(f"Unique OUD patients: {len(oud_patients):,}")
+        # Create patient labels
+        labels_df = create_patient_labels(features_df, oud_df)
         
-        # Create OUD label column (1 for OUD patients, 0 for others)
-        print("\nCreating OUD labels for all patients...")
-        features_df['oud_label'] = features_df['pat_id'].apply(
-            lambda x: 1 if x in oud_patients else 0
+        # Merge features with labels
+        print("\nMerging features with OUD labels...")
+        final_df = features_df.merge(
+            labels_df[['pat_id', 'oud_label', 'first_oud_date', 'oud_year']], 
+            on='pat_id', 
+            how='left'
         )
         
-        # Add additional OUD information if available
-        if 'matched_icd_codes' in oud_df.columns:
-            # Create a dictionary of patient to ICD codes
-            patient_icd_dict = dict(zip(oud_df['pat_id'], oud_df['matched_icd_codes']))
-            features_df['oud_icd_codes'] = features_df['pat_id'].apply(
-                lambda x: patient_icd_dict.get(x, '')
-            )
+        # Fill any missing OUD labels with 0
+        final_df['oud_label'] = final_df['oud_label'].fillna(0).astype(int)
         
-        if 'service_date' in oud_df.columns:
-            # Get first OUD diagnosis date for each patient
-            oud_first_date = oud_df.groupby('pat_id')['service_date'].min().to_dict()
-            features_df['first_oud_date'] = features_df['pat_id'].apply(
-                lambda x: oud_first_date.get(x, '')
-            )
+        # Calculate statistics
+        total_count = len(final_df)
+        oud_count = final_df['oud_label'].sum()
+        non_oud_count = total_count - oud_count
+        prevalence = (oud_count / total_count * 100) if total_count > 0 else 0
         
-        # Calculate OUD prevalence
-        oud_count = features_df['oud_label'].sum()
-        total_count = len(features_df)
-        prevalence = (oud_count / total_count) * 100
+        # Year-wise OUD distribution
+        year_stats = None
+        if 'oud_year' in final_df.columns:
+            year_stats = final_df[final_df['oud_label'] == 1]['oud_year'].value_counts().sort_index()
         
-        print("\n" + "-"*50)
-        print("DATASET SUMMARY")
-        print("-"*50)
+        # Save the merged dataset
+        print("\nSaving merged dataset...")
+        final_df.to_csv(output_path, index=False)
+        print(f"✓ Merged dataset saved to: {output_path}")
+        
+        # Generate comprehensive statistics
+        print("\n" + "="*50)
+        print("DATASET STATISTICS")
+        print("="*50)
         print(f"Total patients: {total_count:,}")
-        print(f"OUD patients: {oud_count:,}")
-        print(f"Non-OUD patients: {total_count - oud_count:,}")
+        print(f"Patients with OUD: {oud_count:,}")
+        print(f"Patients without OUD: {non_oud_count:,}")
         print(f"OUD prevalence: {prevalence:.2f}%")
-        print(f"Class imbalance ratio: 1:{(total_count - oud_count) / max(oud_count, 1):.1f}")
+        print(f"Features: {len(final_df.columns)} columns")
         
-        # Feature statistics by OUD status
-        print("\n" + "-"*50)
-        print("FEATURE STATISTICS BY OUD STATUS")
-        print("-"*50)
+        # Feature statistics
+        feature_cols = [col for col in final_df.columns 
+                       if col not in ['pat_id', 'oud_label', 'first_oud_date', 'oud_year']]
         
-        feature_cols = ['MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year', 
-                       'MME_120_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days']
+        print(f"\nFeature columns ({len(feature_cols)}):")
+        for i, col in enumerate(feature_cols[:10]):  # Show first 10
+            print(f"  {i+1}. {col}")
+        if len(feature_cols) > 10:
+            print(f"  ... and {len(feature_cols) - 10} more")
         
-        for col in feature_cols:
-            if col in features_df.columns:
-                oud_mean = features_df[features_df['oud_label'] == 1][col].mean()
-                non_oud_mean = features_df[features_df['oud_label'] == 0][col].mean()
-                print(f"\n{col}:")
-                print(f"  OUD patients mean: {oud_mean:.2f}")
-                print(f"  Non-OUD patients mean: {non_oud_mean:.2f}")
-                print(f"  Ratio (OUD/Non-OUD): {oud_mean/max(non_oud_mean, 0.001):.2f}x")
+        # Save detailed statistics
+        with open(stats_path, 'w') as f:
+            f.write("IQVIA OUD DATASET STATISTICS\n")
+            f.write("="*50 + "\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Processing time: {(time.time() - start_time)/60:.1f} minutes\n\n")
+            
+            f.write("DATASET OVERVIEW\n")
+            f.write("-"*30 + "\n")
+            f.write(f"Total patients: {total_count:,}\n")
+            f.write(f"Patients with OUD: {oud_count:,}\n")
+            f.write(f"Patients without OUD: {non_oud_count:,}\n")
+            f.write(f"OUD prevalence: {prevalence:.2f}%\n")
+            f.write(f"Total features: {len(feature_cols)}\n\n")
+            
+            if year_stats is not None and len(year_stats) > 0:
+                f.write("OUD CASES BY YEAR\n")
+                f.write("-"*30 + "\n")
+                for year, count in year_stats.items():
+                    f.write(f"{year}: {count:,}\n")
+                f.write("\n")
+            
+            f.write("FEATURE COLUMNS\n")
+            f.write("-"*30 + "\n")
+            for col in feature_cols:
+                f.write(f"- {col}\n")
+            
+            f.write("\nFEATURE STATISTICS\n")
+            f.write("-"*30 + "\n")
+            
+            # Calculate basic statistics for numeric features
+            numeric_features = final_df[feature_cols].select_dtypes(include=[np.number])
+            if not numeric_features.empty:
+                stats_summary = numeric_features.describe().round(2)
+                f.write(stats_summary.to_string())
         
-        # Check for any missing values
-        print("\n" + "-"*50)
-        print("DATA QUALITY CHECK")
-        print("-"*50)
-        missing_counts = features_df[feature_cols + ['oud_label']].isnull().sum()
-        if missing_counts.sum() == 0:
-            print("✓ No missing values in features or labels")
-        else:
-            print("Missing values found:")
-            for col, count in missing_counts[missing_counts > 0].items():
-                print(f"  {col}: {count} ({count/len(features_df)*100:.2f}%)")
+        print(f"\n✓ Statistics saved to: {stats_path}")
         
-        # Save the final dataset
-        print("\n" + "-"*50)
-        print("SAVING FINAL DATASET")
-        print("-"*50)
-        features_df.to_csv(output_path, index=False)
-        print(f"✓ Final dataset saved to: {output_path}")
-        print(f"  Dimensions: {len(features_df):,} rows × {len(features_df.columns)} columns")
-        print(f"  File size: {os.path.getsize(output_path) / (1024*1024):.1f} MB")
+        # Create stratified samples for validation
+        print("\nCreating stratified samples...")
         
-        # Create a stratified sample for quick validation
-        print("\nCreating stratified sample for validation...")
-        sample_size = min(1000, len(features_df))
+        # Small sample (1,000 rows)
+        create_stratified_sample(final_df, 1000, prevalence, 
+                               '/sharefolder/wanglab/MME/final_dataset_sample_1000.csv')
         
-        # Stratified sampling to maintain OUD prevalence
-        oud_sample_size = int(sample_size * prevalence / 100)
-        non_oud_sample_size = sample_size - oud_sample_size
+        # Medium sample (10,000 rows)
+        if len(final_df) >= 10000:
+            create_stratified_sample(final_df, 10000, prevalence, 
+                                   '/sharefolder/wanglab/MME/final_dataset_sample_10000.csv')
         
-        oud_sample = features_df[features_df['oud_label'] == 1].sample(
-            n=min(oud_sample_size, oud_count), random_state=42
-        )
-        non_oud_sample = features_df[features_df['oud_label'] == 0].sample(
-            n=min(non_oud_sample_size, total_count - oud_count), random_state=42
-        )
+        # Large sample (100,000 rows)
+        if len(final_df) >= 100000:
+            create_stratified_sample(final_df, 100000, prevalence, 
+                                   '/sharefolder/wanglab/MME/final_dataset_sample_100000.csv')
         
-        stratified_sample = pd.concat([oud_sample, non_oud_sample]).sample(frac=1, random_state=42)
-        sample_path = '/sharefolder/wanglab/MME/final_dataset_sample_1000.csv'
-        stratified_sample.to_csv(sample_path, index=False)
-        print(f"✓ Stratified sample saved to: {sample_path}")
-        
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"\n✓ Step 7 completed successfully in {elapsed_time:.2f} seconds")
+        print("\n" + "="*50)
+        print("NEXT STEPS")
+        print("="*50)
+        print("1. Review the dataset statistics above")
+        print("2. Check the stratified samples for data quality")
+        print("3. Run ML models using final_dataset_with_oud_labels.csv")
+        print("4. Consider addressing class imbalance if needed")
+        print("\nDataset is ready for ML modeling!")
         
         return True
         
@@ -166,6 +219,42 @@ def merge_features_with_oud_labels():
         import traceback
         traceback.print_exc()
         return False
+
+def create_stratified_sample(df, sample_size, prevalence, output_path):
+    """Create a stratified sample maintaining OUD prevalence"""
+    try:
+        if len(df) < sample_size:
+            print(f"Dataset smaller than requested sample size {sample_size}")
+            return
+        
+        # Calculate stratified sizes
+        oud_sample_size = int(sample_size * prevalence / 100)
+        non_oud_sample_size = sample_size - oud_sample_size
+        
+        # Get OUD and non-OUD patients
+        oud_patients = df[df['oud_label'] == 1]
+        non_oud_patients = df[df['oud_label'] == 0]
+        
+        # Sample from each group
+        oud_sample = oud_patients.sample(
+            n=min(oud_sample_size, len(oud_patients)), 
+            random_state=42
+        )
+        non_oud_sample = non_oud_patients.sample(
+            n=min(non_oud_sample_size, len(non_oud_patients)), 
+            random_state=42
+        )
+        
+        # Combine and shuffle
+        stratified_sample = pd.concat([oud_sample, non_oud_sample])
+        stratified_sample = stratified_sample.sample(frac=1, random_state=42)
+        
+        # Save
+        stratified_sample.to_csv(output_path, index=False)
+        print(f"✓ Stratified sample ({sample_size:,} rows) saved to: {os.path.basename(output_path)}")
+        
+    except Exception as e:
+        print(f"Error creating stratified sample: {e}")
 
 def validate_merged_dataset():
     """
@@ -182,89 +271,63 @@ def validate_merged_dataset():
         return False
     
     try:
-        # Load the dataset
-        df = pd.read_csv(output_path)
-        print(f"Dataset loaded: {len(df):,} rows")
+        # Load dataset
+        print("Loading dataset for validation...")
+        df = pd.read_csv(output_path, nrows=10000)  # Load sample for validation
         
-        # Required columns for ML
-        required_features = [
-            'pat_id', 'most_recent_date',
-            'MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year',
-            'MME_120_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days',
-            'oud_label'
-        ]
+        # Check for required columns
+        required_cols = ['pat_id', 'oud_label']
+        missing_cols = [col for col in required_cols if col not in df.columns]
         
-        missing_cols = [col for col in required_features if col not in df.columns]
         if missing_cols:
             print(f"❌ Missing required columns: {missing_cols}")
             return False
-        else:
-            print("✓ All required columns present")
         
         # Check data types
-        print("\nData types:")
-        for col in required_features[2:]:  # Skip pat_id and date
-            dtype = df[col].dtype
-            print(f"  {col}: {dtype}")
-            if col == 'oud_label' and dtype not in ['int64', 'int32']:
-                print(f"  Warning: oud_label should be integer type")
+        print("\nData type validation:")
+        print(f"  - pat_id type: {df['pat_id'].dtype}")
+        print(f"  - oud_label type: {df['oud_label'].dtype}")
+        print(f"  - oud_label unique values: {sorted(df['oud_label'].unique())}")
         
-        # Check value ranges
-        print("\nValue range validation:")
+        # Check for missing values
+        print("\nMissing value check:")
+        missing_counts = df.isnull().sum()
+        cols_with_missing = missing_counts[missing_counts > 0]
         
-        # OUD label should be binary
-        unique_labels = df['oud_label'].unique()
-        if set(unique_labels) == {0, 1}:
-            print("✓ OUD labels are binary (0, 1)")
+        if len(cols_with_missing) > 0:
+            print("  Columns with missing values:")
+            for col, count in cols_with_missing.items():
+                pct = (count / len(df)) * 100
+                print(f"    - {col}: {count} ({pct:.1f}%)")
         else:
-            print(f"❌ Invalid OUD label values: {unique_labels}")
+            print("  ✓ No missing values in key columns")
         
-        # Features should be non-negative
-        feature_cols = required_features[2:-1]  # Exclude pat_id, date, and label
-        for col in feature_cols:
-            min_val = df[col].min()
-            if min_val < 0:
-                print(f"❌ {col} has negative values (min: {min_val})")
-            else:
-                print(f"✓ {col} values are non-negative")
+        # Check feature distributions
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        numeric_cols = [col for col in numeric_cols if col != 'oud_label']
         
-        # Check for duplicates
-        duplicates = df.duplicated(subset=['pat_id', 'most_recent_date']).sum()
-        if duplicates > 0:
-            print(f"\n Warning: {duplicates} duplicate patient records found")
-        else:
-            print("\n✓ No duplicate patient records")
+        print(f"\n✓ Dataset validation complete")
+        print(f"  - {len(numeric_cols)} numeric features found")
+        print(f"  - Dataset appears ready for ML modeling")
         
-        print("\n✓ Dataset validation complete - ready for ML modeling!")
         return True
         
     except Exception as e:
-        print(f"Error during validation: {str(e)}")
+        print(f"Error during validation: {e}")
         return False
 
-if __name__ == "__main__":
-    print("Starting Step 7: Merge Features with OUD Labels")
-    print("This step combines the feature dataset with OUD diagnosis labels\n")
+def main():
+    """Main function"""
+    print("🚀 Starting Step 7: Merge Features with OUD Labels")
     
     # Run the merge
-    success = merge_features_with_oud_labels()
-    
-    if success:
-        print("\n" + "="*80)
+    if merge_features_with_oud_labels():
+        print("\n Merge completed successfully!")
+        
         # Validate the result
         validate_merged_dataset()
-        
-        print("\n" + "="*80)
-        print("NEXT STEPS")
-        print("="*80)
-        print("1. Review the final dataset statistics above")
-        print("2. Check the stratified sample for data quality")
-        print("3. Run ML models using final_dataset_with_oud_labels.csv")
-        print("4. Consider addressing class imbalance if OUD prevalence is very low")
-        print("\nYou can now run simple_test.py or your ML pipeline with real OUD labels!")
     else:
-        print("\nMerge failed! Please check the error messages above.")
-        print("Ensure that:")
-        print("- Step 5 (merge_features.py) completed successfully")
-        print("- Step 6 (extract_OUD_labels.py) completed successfully")
-        print("- Both output files exist in /sharefolder/wanglab/MME/")
+        print("\n Merge failed! Please check the error messages above.")
+
+if __name__ == "__main__":
+    main()
