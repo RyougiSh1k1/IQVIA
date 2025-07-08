@@ -532,7 +532,7 @@ class OUDNeuralNetworks:
     
     def run_complete_evaluation(self):
         """Run the complete neural network evaluation pipeline"""
-        print("🚀 Starting Neural Network Model Evaluation for OUD Prediction")
+        print(" Starting Neural Network Model Evaluation for OUD Prediction")
         print("="*80)
         
         # Load and prepare data

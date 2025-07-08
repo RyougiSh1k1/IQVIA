@@ -1,0 +1,4 @@
+Model,Architecture,AUC-ROC,AUC-PR,Sensitivity,Specificity,Precision,F1-Score
+Simple Feedforward,3 hidden layers (64-32-16),0.6076,0.0137,0.4436,0.7145,0.0116,0.0227
+Wide & Deep,Wide path + 3 deep layers,0.5956,0.0132,0.3548,0.7925,0.0128,0.0247
+Attention-based,Multi-head attention + 2 layers,0.6180,0.0142,0.3902,0.7772,0.0131,0.0254
