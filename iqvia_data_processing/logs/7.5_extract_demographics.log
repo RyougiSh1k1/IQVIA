@@ -1,0 +1,30 @@
+🚀 Starting Step 7.5: Extract and Merge Demographic Features
+This process may take several hours due to the large data volume
+================================================================================
+EXTRACTING DEMOGRAPHIC FEATURES
+================================================================================
+
+1. Processing enrollment synthetic data (age, gender, zip3)...
+Found 0 accessible files
+Loaded header with 9 columns from ./header/header_enroll_synth.csv
+Processing synthetic enrollment files: 0it [00:00, ?it/s]Processing synthetic enrollment files: 0it [00:00, ?it/s]
+Extracted demographics for 0 records
+Traceback (most recent call last):
+  File "/home/qinyu@chapman.edu/IQVIA/iqvia_data_processing/7.5_extract_demographics.py", line 436, in <module>
+    main()
+  File "/home/qinyu@chapman.edu/IQVIA/iqvia_data_processing/7.5_extract_demographics.py", line 420, in main
+    demo_df = extract_demographic_features()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qinyu@chapman.edu/IQVIA/iqvia_data_processing/7.5_extract_demographics.py", line 208, in extract_demographic_features
+    demo_df = demo_df.groupby('pat_id').agg({
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cm/shared/apps/anaconda3/lib/python3.12/site-packages/pandas/core/frame.py", line 9183, in groupby
+    return DataFrameGroupBy(
+           ^^^^^^^^^^^^^^^^^
+  File "/cm/shared/apps/anaconda3/lib/python3.12/site-packages/pandas/core/groupby/groupby.py", line 1329, in __init__
+    grouper, exclusions, obj = get_grouper(
+                               ^^^^^^^^^^^^
+  File "/cm/shared/apps/anaconda3/lib/python3.12/site-packages/pandas/core/groupby/grouper.py", line 1043, in get_grouper
+    raise KeyError(gpr)
+KeyError: 'pat_id'
+srun: error: node008: task 0: Exited with exit code 1

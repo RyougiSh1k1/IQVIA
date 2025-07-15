@@ -1,0 +1,9 @@
+ Starting Step 7.5: Extract and Merge Demographic Features
+This process may take several hours due to the large data volume
+================================================================================
+EXTRACTING DEMOGRAPHIC FEATURES
+================================================================================
+
+1. Processing enrollment synthetic data (age, gender, zip3)...
+Found 200 accessible files
+Loaded header with 9 columns from /sharefolder/IQVIA/header/header_enroll_synth.csv

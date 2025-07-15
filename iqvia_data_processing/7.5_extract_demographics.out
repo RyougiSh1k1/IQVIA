@@ -1,0 +1,4 @@
+Starting demographic feature extraction...
+This process will extract age, gender, zip3, and payment type
+Processing enrollment synthetic data and enrollment files from 2006-2022
+Process completed. Check the log file for details.
