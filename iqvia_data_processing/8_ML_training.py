@@ -1,12 +1,13 @@
 """
-OUD (Opioid Use Disorder) Prediction Models
-============================================
+OUD (Opioid Use Disorder) Prediction Models - Enhanced with Demographics & SDOH
+===============================================================================
 This script implements and evaluates three ML models for OUD prediction:
 1. Logistic Regression - Interpretable baseline with feature coefficients
 2. Random Forest - Captures non-linear patterns and feature interactions
 3. XGBoost - State-of-the-art gradient boosting for imbalanced data
 
-The models are specifically chosen for healthcare prediction with class imbalance.
+Now includes demographic features (age, gender, payment type) and
+socioeconomic determinants of health (SDOH) from ZIP-level census data.
 """
 
 import pandas as pd
@@ -14,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
@@ -32,33 +33,85 @@ warnings.filterwarnings('ignore')
 class OUDModelEvaluator:
     """
     Comprehensive evaluator for OUD prediction models with focus on 
-    handling class imbalance and healthcare-specific metrics
+    handling class imbalance and healthcare-specific metrics.
+    Now includes demographic and SDOH features.
     """
     
-    def __init__(self, data_path='/sharefolder/wanglab/MME/final_dataset_with_oud_labels.csv'):
+    def __init__(self, data_path='/sharefolder/wanglab/ML_training/final_OUD_ML_dataset.csv'):
         self.data_path = data_path
-        self.feature_cols = [
+        
+        # Define feature groups
+        self.mme_features = [
             'MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year',
-            'MME_120_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days'
+            'MME_120_2_years'
         ]
+        
+        self.prescriber_features = [
+            'prscbr_last_2_years', 'prscrbr_last_180_days'
+        ]
+        
+        self.demographic_features = [
+            'age', 'der_sex', 'pay_type'
+        ]
+        
+        self.sdoh_features = [
+            'age_median', 'income_household_median', 'home_ownership',
+            'education_highschool', 'education_college_or_above', 
+            'unemployment_rate', 'poverty', 'disabled',
+            'race_white', 'race_black', 'race_asian', 'race_native',
+            'race_pacific', 'hispanic'
+        ]
+        
+        # Columns to drop
+        self.columns_to_drop = [
+            'pat_id', 'most_recent_date', 'start_date_180_days', 
+            'start_date_2_years'
+        ]
+        
+        self.target_col = 'oud_label'
+        
+        # Initialize attributes
         self.X = None
         self.y = None
         self.X_train = None
         self.X_test = None
         self.y_train = None
         self.y_test = None
+        self.feature_names = None
         self.models = {}
         self.results = {}
+        self.encoders = {}
         
     def load_and_prepare_data(self):
-        """Load data and prepare for modeling"""
+        """Load data and prepare for modeling with enhanced features"""
         print("Loading dataset...")
         df = pd.read_csv(self.data_path)
         print(f"Dataset shape: {df.shape}")
+        print(f"Columns: {list(df.columns)}")
         
-        # Extract features and target
-        self.X = df[self.feature_cols]
-        self.y = df['oud_label']
+        # Drop specified columns
+        print(f"\nDropping columns: {self.columns_to_drop}")
+        df = df.drop(columns=[col for col in self.columns_to_drop if col in df.columns])
+        
+        # Handle categorical variables
+        print("\nEncoding categorical variables...")
+        
+        # Encode gender (assuming F=0, M=1)
+        if 'der_sex' in df.columns:
+            self.encoders['der_sex'] = LabelEncoder()
+            df['der_sex'] = self.encoders['der_sex'].fit_transform(df['der_sex'])
+            print(f"Gender encoding: {dict(zip(self.encoders['der_sex'].classes_, self.encoders['der_sex'].transform(self.encoders['der_sex'].classes_)))}")
+        
+        # Encode payment type
+        if 'pay_type' in df.columns:
+            self.encoders['pay_type'] = LabelEncoder()
+            df['pay_type'] = self.encoders['pay_type'].fit_transform(df['pay_type'])
+            print(f"Payment type encoding: {dict(zip(self.encoders['pay_type'].classes_, self.encoders['pay_type'].transform(self.encoders['pay_type'].classes_)))}")
+        
+        # Separate features and target
+        self.y = df[self.target_col]
+        self.X = df.drop(columns=[self.target_col])
+        self.feature_names = list(self.X.columns)
         
         # Check class distribution
         class_dist = self.y.value_counts()
@@ -72,6 +125,9 @@ class OUDModelEvaluator:
             print(f"\nHandling {self.X.isnull().sum().sum()} missing values...")
             self.X = self.X.fillna(self.X.median())
         
+        # Feature statistics by group
+        self._print_feature_group_stats()
+        
         # Split data stratified to maintain class distribution
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             self.X, self.y, test_size=0.2, random_state=42, stratify=self.y
@@ -81,6 +137,26 @@ class OUDModelEvaluator:
         print(f"Test set: {self.X_test.shape}")
         
         return True
+    
+    def _print_feature_group_stats(self):
+        """Print statistics for each feature group"""
+        print("\n" + "="*60)
+        print("FEATURE GROUP STATISTICS")
+        print("="*60)
+        
+        feature_groups = {
+            'MME Features': self.mme_features,
+            'Prescriber Features': self.prescriber_features,
+            'Demographic Features': self.demographic_features,
+            'SDOH Features': self.sdoh_features
+        }
+        
+        for group_name, features in feature_groups.items():
+            available_features = [f for f in features if f in self.feature_names]
+            if available_features:
+                print(f"\n{group_name} ({len(available_features)} features):")
+                group_data = self.X[available_features]
+                print(group_data.describe().round(2))
     
     def build_models(self):
         """Build three ML models suitable for OUD prediction"""
@@ -217,25 +293,79 @@ class OUDModelEvaluator:
             if hasattr(model, 'feature_importances_'):
                 importances = model.feature_importances_
                 feature_imp = pd.DataFrame({
-                    'feature': self.feature_cols,
+                    'feature': self.feature_names,
                     'importance': importances
                 }).sort_values('importance', ascending=False)
-                print(f"\nFeature Importances:")
-                for _, row in feature_imp.iterrows():
+                
+                print(f"\nTop 15 Feature Importances:")
+                for _, row in feature_imp.head(15).iterrows():
                     print(f"  {row['feature']}: {row['importance']:.4f}")
             
             # Coefficients for logistic regression
             elif hasattr(model, 'coef_'):
                 coefficients = model.coef_[0]
                 feature_coef = pd.DataFrame({
-                    'feature': self.feature_cols,
+                    'feature': self.feature_names,
                     'coefficient': coefficients
                 }).sort_values('coefficient', key=abs, ascending=False)
-                print(f"\nFeature Coefficients:")
-                for _, row in feature_coef.iterrows():
+                
+                print(f"\nTop 15 Feature Coefficients (by magnitude):")
+                for _, row in feature_coef.head(15).iterrows():
                     print(f"  {row['feature']}: {row['coefficient']:.4f}")
         
         return True
+    
+    def analyze_feature_importance_by_group(self):
+        """Analyze feature importance grouped by feature type"""
+        print("\n" + "="*80)
+        print("FEATURE IMPORTANCE BY GROUP")
+        print("="*80)
+        
+        # Get feature importance from tree-based models
+        for model_name in ['Random Forest', 'XGBoost']:
+            if model_name in self.models:
+                model = self.models[model_name]['model']
+                if hasattr(model, 'feature_importances_'):
+                    importances = model.feature_importances_
+                    
+                    # Create importance DataFrame
+                    imp_df = pd.DataFrame({
+                        'feature': self.feature_names,
+                        'importance': importances
+                    })
+                    
+                    # Categorize features
+                    def categorize_feature(feature):
+                        if feature in self.mme_features:
+                            return 'MME'
+                        elif feature in self.prescriber_features:
+                            return 'Prescriber'
+                        elif feature in self.demographic_features:
+                            return 'Demographic'
+                        elif feature in self.sdoh_features:
+                            return 'SDOH'
+                        else:
+                            return 'Other'
+                    
+                    imp_df['category'] = imp_df['feature'].apply(categorize_feature)
+                    
+                    # Group importance by category
+                    category_importance = imp_df.groupby('category')['importance'].agg(['sum', 'mean', 'count'])
+                    category_importance = category_importance.sort_values('sum', ascending=False)
+                    
+                    print(f"\n{model_name} - Importance by Feature Category:")
+                    print(category_importance.round(4))
+                    
+                    # Plot
+                    plt.figure(figsize=(10, 6))
+                    category_importance['sum'].plot(kind='bar')
+                    plt.title(f'{model_name} - Total Feature Importance by Category')
+                    plt.xlabel('Feature Category')
+                    plt.ylabel('Total Importance')
+                    plt.xticks(rotation=45)
+                    plt.tight_layout()
+                    plt.savefig(f'feature_importance_by_category_{model_name.lower().replace(" ", "_")}.png', dpi=300)
+                    plt.show()
     
     def plot_model_comparison(self):
         """Create comprehensive visualizations for model comparison"""
@@ -383,30 +513,27 @@ class OUDModelEvaluator:
         print(f"   → Precision: {best_precision[1]['precision']:.4f}")
         print(f"   → {best_precision[1]['precision']*100:.1f}% of positive predictions are correct")
         
-        # Calculate potential impact
+        # Feature insights
         print("\n" + "-"*80)
-        print("POTENTIAL CLINICAL IMPACT:")
+        print("FEATURE INSIGHTS:")
         print("-"*80)
-        
-        for name, metrics in self.results.items():
-            tn, fp, fn, tp = metrics['confusion_matrix'].ravel()
-            total = tn + fp + fn + tp
-            
-            print(f"\n{name}:")
-            print(f"  • Correctly identified OUD patients: {tp} ({tp/total*100:.2f}%)")
-            print(f"  • Missed OUD patients: {fn} ({fn/total*100:.2f}%)")
-            print(f"  • False alarms: {fp} ({fp/total*100:.2f}%)")
-            print(f"  • Number needed to screen: {(tp+fp)/tp:.1f}")
+        print("\nThe models now incorporate:")
+        print("• Prescription patterns (MME features)")
+        print("• Healthcare utilization (prescriber counts)")
+        print("• Patient demographics (age, gender, insurance)")
+        print("• Social determinants of health (income, education, employment, etc.)")
+        print("\nThis comprehensive feature set enables better risk stratification")
+        print("and can help identify both clinical and social risk factors for OUD.")
         
         # Save summary
-        summary_df.to_csv('oud_model_summary.csv', index=False)
-        print("\n✓ Summary saved to 'oud_model_summary.csv'")
+        summary_df.to_csv('oud_model_summary_full_features.csv', index=False)
+        print("\n✓ Summary saved to 'oud_model_summary_full_features.csv'")
         
         return summary_df
     
     def run_complete_evaluation(self):
         """Run the complete model evaluation pipeline"""
-        print("Starting OUD Prediction Model Evaluation")
+        print("Starting OUD Prediction Model Evaluation with Full Feature Set")
         print("="*80)
         
         # Load and prepare data
@@ -424,6 +551,9 @@ class OUDModelEvaluator:
         # Visualize results
         self.plot_model_comparison()
         
+        # Analyze feature importance by group
+        self.analyze_feature_importance_by_group()
+        
         # Generate summary
         summary = self.generate_summary_report()
         
@@ -437,8 +567,10 @@ class OUDModelEvaluator:
 def main():
     """Main function to run OUD prediction model evaluation"""
     
-    # Initialize evaluator
-    evaluator = OUDModelEvaluator()
+    # Initialize evaluator with your dataset path
+    evaluator = OUDModelEvaluator(
+        data_path='/sharefolder/wanglab/ML_training/final_OUD_ML_dataset.csv'
+    )
     
     # Run evaluation
     results = evaluator.run_complete_evaluation()
@@ -447,15 +579,16 @@ def main():
         print("\n" + "="*80)
         print("EVALUATION COMPLETE")
         print("="*80)
-        print("All models trained and evaluated")
-        print("Visualizations saved")
-        print("Summary report generated")
+        print(" All models trained and evaluated with full feature set")
+        print(" Visualizations saved")
+        print(" Summary report generated")
         print("\n Output files:")
         print("  - oud_model_metrics_comparison.png")
         print("  - oud_roc_curves.png")
         print("  - oud_pr_curves.png")
         print("  - oud_confusion_matrices.png")
-        print("  - oud_model_summary.csv")
+        print("  - feature_importance_by_category_*.png")
+        print("  - oud_model_summary_full_features.csv")
 
 if __name__ == "__main__":
     main()
