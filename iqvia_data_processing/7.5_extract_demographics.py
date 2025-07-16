@@ -6,7 +6,7 @@ and payment type from enrollment files, then merges with existing features.
 Input files:
 - /sharefolder/IQVIA/enroll_synth/csv_in_parts/*.csv (age, gender, zip3)
 - /sharefolder/IQVIA/enroll2_{year}/csv_in_parts/*.csv (payment type)
-- /sharefolder/wanglab/MME/final_dataset_with_oud_labels.csv (existing features)
+- /sharefolder/wanglab/MME/final_ML_dataset.csv (existing features)
 
 Output files:
 - /sharefolder/wanglab/MME/demographic_features.csv (extracted demographics)
@@ -327,7 +327,7 @@ def merge_with_existing_features():
     print("="*80)
     
     # Load existing dataset
-    existing_path = '/sharefolder/wanglab/MME/final_dataset_with_oud_labels.csv'
+    existing_path = '/sharefolder/wanglab/MME/final_ML_dataset.csv'
     demo_path = '/sharefolder/wanglab/MME/demographic_features.csv'
     
     if not os.path.exists(existing_path):

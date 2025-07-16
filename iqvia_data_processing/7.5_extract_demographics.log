@@ -7,3 +7,16 @@ EXTRACTING DEMOGRAPHIC FEATURES
 1. Processing enrollment synthetic data (age, gender, zip3)...
 Found 200 accessible files
 Loaded header with 9 columns from /sharefolder/IQVIA/header/header_enroll_synth.csv
+Processed file 60/200: 139117 patients
+Processed file 100/200: 140175 patients
+Processed file 140/200: 139714 patients
+Processed file 170/200: 139451 patients
+Processed file 10/200: 140020 patients
+Processed file 40/200: 139359 patients
+Processed file 190/200: 140599 patients
+Processed file 80/200: 139009 patients
+Processed file 120/200: 139564 patients
+Processed file 70/200: 139855 patients
+Processed file 110/200: 139130 patients
+Processed file 180/200: 139637 patients
+Extracted demographics for 27922504 records
