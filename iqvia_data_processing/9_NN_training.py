@@ -1,12 +1,13 @@
 """
-OUD (Opioid Use Disorder) Prediction - Neural Network Models
-=============================================================
+OUD (Opioid Use Disorder) Prediction - Neural Network Models with Full Features
+===============================================================================
 This script implements three neural network architectures for OUD prediction:
 1. Simple Feedforward NN - Baseline deep learning model
 2. Wide & Deep NN - Combines memorization and generalization
 3. Attention-based NN - Focuses on important feature interactions
 
-Each model is designed to handle class imbalance and healthcare data characteristics.
+Now includes demographic features (age, gender, payment type) and
+socioeconomic determinants of health (SDOH) from ZIP-level census data.
 """
 
 import pandas as pd
@@ -14,37 +15,75 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import (
     classification_report, confusion_matrix, roc_auc_score, 
     roc_curve, precision_recall_curve, average_precision_score,
     f1_score, precision_score, recall_score
 )
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers, Model, regularizers
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
-from tensorflow.keras.utils import plot_model
+
+# Try to import TensorFlow
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+    from tensorflow.keras import layers, Model, regularizers
+    from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
+    from tensorflow.keras.utils import plot_model
+    HAS_TENSORFLOW = True
+except ImportError:
+    HAS_TENSORFLOW = False
+    print("Error: TensorFlow not installed. Please install with: pip install tensorflow")
+    
 import warnings
 warnings.filterwarnings('ignore')
 
 # Set random seeds for reproducibility
 np.random.seed(42)
-tf.random.set_seed(42)
+if HAS_TENSORFLOW:
+    tf.random.set_seed(42)
 
 class OUDNeuralNetworks:
     """
     Neural Network models for OUD prediction with focus on 
-    handling class imbalance and extracting complex patterns
+    handling class imbalance and extracting complex patterns.
+    Now includes demographic and SDOH features.
     """
     
-    def __init__(self, data_path='/sharefolder/wanglab/MME/final_dataset_with_oud_labels.csv'):
+    def __init__(self, data_path='/sharefolder/wanglab/ML_training/final_OUD_ML_dataset.csv'):
         self.data_path = data_path
-        self.feature_cols = [
+        
+        # Define feature groups
+        self.mme_features = [
             'MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year',
-            'MME_120_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days'
+            'MME_120_2_years'
         ]
-        self.n_features = len(self.feature_cols)
+        
+        self.prescriber_features = [
+            'prscbr_last_2_years', 'prscrbr_last_180_days'
+        ]
+        
+        self.demographic_features = [
+            'age', 'der_sex', 'pay_type'
+        ]
+        
+        self.sdoh_features = [
+            'age_median', 'income_household_median', 'home_ownership',
+            'education_highschool', 'education_college_or_above', 
+            'unemployment_rate', 'poverty', 'disabled',
+            'race_white', 'race_black', 'race_asian', 'race_native',
+            'race_pacific', 'hispanic'
+        ]
+        
+        # Columns to drop
+        self.columns_to_drop = [
+            'pat_id', 'most_recent_date', 'start_date_180_days', 
+            'start_date_2_years'
+        ]
+        
+        self.target_col = 'oud_label'
+        
+        # Initialize attributes
+        self.n_features = None
         self.X = None
         self.y = None
         self.X_train = None
@@ -54,20 +93,44 @@ class OUDNeuralNetworks:
         self.X_val = None
         self.y_val = None
         self.scaler = None
+        self.feature_names = None
         self.models = {}
         self.histories = {}
         self.results = {}
         self.class_weight = None
+        self.encoders = {}
         
     def load_and_prepare_data(self):
         """Load data and prepare for neural network training"""
         print("Loading dataset...")
         df = pd.read_csv(self.data_path)
         print(f"Dataset shape: {df.shape}")
+        print(f"Columns: {list(df.columns)}")
+        
+        # Drop specified columns
+        print(f"\nDropping columns: {self.columns_to_drop}")
+        df = df.drop(columns=[col for col in self.columns_to_drop if col in df.columns])
+        
+        # Handle categorical variables
+        print("\nEncoding categorical variables...")
+        
+        # Encode gender (assuming F=0, M=1)
+        if 'der_sex' in df.columns:
+            self.encoders['der_sex'] = LabelEncoder()
+            df['der_sex'] = self.encoders['der_sex'].fit_transform(df['der_sex'])
+            print(f"Gender encoding: {dict(zip(self.encoders['der_sex'].classes_, self.encoders['der_sex'].transform(self.encoders['der_sex'].classes_)))}")
+        
+        # Encode payment type
+        if 'pay_type' in df.columns:
+            self.encoders['pay_type'] = LabelEncoder()
+            df['pay_type'] = self.encoders['pay_type'].fit_transform(df['pay_type'])
+            print(f"Payment type encoding: {dict(zip(self.encoders['pay_type'].classes_, self.encoders['pay_type'].transform(self.encoders['pay_type'].classes_)))}")
         
         # Extract features and target
-        self.X = df[self.feature_cols].values
-        self.y = df['oud_label'].values
+        self.y = df[self.target_col].values
+        self.X = df.drop(columns=[self.target_col]).values
+        self.feature_names = [col for col in df.columns if col != self.target_col]
+        self.n_features = len(self.feature_names)
         
         # Calculate class weights for imbalanced data
         n_samples = len(self.y)
@@ -101,8 +164,34 @@ class OUDNeuralNetworks:
         print(f"\nTrain set: {self.X_train.shape}")
         print(f"Validation set: {self.X_val.shape}")
         print(f"Test set: {self.X_test.shape}")
+        print(f"Number of features: {self.n_features}")
+        
+        # Print feature groups info
+        self._print_feature_group_info()
         
         return True
+    
+    def _print_feature_group_info(self):
+        """Print information about feature groups"""
+        print("\n" + "="*60)
+        print("FEATURE GROUPS IN NEURAL NETWORK")
+        print("="*60)
+        
+        feature_groups = {
+            'MME Features': self.mme_features,
+            'Prescriber Features': self.prescriber_features,
+            'Demographic Features': self.demographic_features,
+            'SDOH Features': self.sdoh_features
+        }
+        
+        total_features = 0
+        for group_name, features in feature_groups.items():
+            available = [f for f in features if f in self.feature_names]
+            total_features += len(available)
+            print(f"{group_name}: {len(available)} features")
+        
+        print(f"\nTotal features used: {total_features}")
+        print(f"Total features in dataset: {self.n_features}")
     
     def create_simple_feedforward_nn(self):
         """
@@ -110,23 +199,30 @@ class OUDNeuralNetworks:
         - Multiple hidden layers with dropout
         - Batch normalization for stable training
         - L2 regularization to prevent overfitting
+        - Adapted for larger feature set
         """
         model = keras.Sequential([
             layers.Input(shape=(self.n_features,)),
             
-            # First hidden layer
-            layers.Dense(64, kernel_regularizer=regularizers.l2(0.001)),
+            # First hidden layer - larger due to more features
+            layers.Dense(128, kernel_regularizer=regularizers.l2(0.001)),
             layers.BatchNormalization(),
             layers.ReLU(),
             layers.Dropout(0.3),
             
             # Second hidden layer
-            layers.Dense(32, kernel_regularizer=regularizers.l2(0.001)),
+            layers.Dense(64, kernel_regularizer=regularizers.l2(0.001)),
             layers.BatchNormalization(),
             layers.ReLU(),
             layers.Dropout(0.3),
             
             # Third hidden layer
+            layers.Dense(32, kernel_regularizer=regularizers.l2(0.001)),
+            layers.BatchNormalization(),
+            layers.ReLU(),
+            layers.Dropout(0.2),
+            
+            # Fourth hidden layer
             layers.Dense(16, kernel_regularizer=regularizers.l2(0.001)),
             layers.BatchNormalization(),
             layers.ReLU(),
@@ -155,23 +251,30 @@ class OUDNeuralNetworks:
         - Wide component: memorizes feature interactions
         - Deep component: generalizes to unseen patterns
         - Particularly effective for healthcare data with both linear and non-linear patterns
+        - Enhanced for demographic and SDOH features
         """
         # Input layer
         input_layer = layers.Input(shape=(self.n_features,))
         
         # Wide component - direct connection from input to output
+        # Good for memorizing simple patterns in demographic/SDOH features
         wide = layers.Dense(1, activation='linear')(input_layer)
         
         # Deep component - multiple hidden layers
-        deep = layers.Dense(64, activation='relu', 
+        deep = layers.Dense(128, activation='relu', 
                            kernel_regularizer=regularizers.l2(0.001))(input_layer)
+        deep = layers.BatchNormalization()(deep)
+        deep = layers.Dropout(0.3)(deep)
+        
+        deep = layers.Dense(64, activation='relu',
+                           kernel_regularizer=regularizers.l2(0.001))(deep)
         deep = layers.BatchNormalization()(deep)
         deep = layers.Dropout(0.3)(deep)
         
         deep = layers.Dense(32, activation='relu',
                            kernel_regularizer=regularizers.l2(0.001))(deep)
         deep = layers.BatchNormalization()(deep)
-        deep = layers.Dropout(0.3)(deep)
+        deep = layers.Dropout(0.2)(deep)
         
         deep = layers.Dense(16, activation='relu',
                            kernel_regularizer=regularizers.l2(0.001))(deep)
@@ -204,21 +307,21 @@ class OUDNeuralNetworks:
         Model 3: Attention-based Neural Network
         - Self-attention mechanism to identify important feature interactions
         - Particularly useful for understanding which features contribute most to predictions
-        - Interpretable through attention weights
+        - Enhanced to handle larger feature space
         """
         # Input layer
         input_layer = layers.Input(shape=(self.n_features,))
         
-        # Feature embedding layer
-        embedded = layers.Dense(32, activation='relu')(input_layer)
+        # Feature embedding layer - larger embedding for more features
+        embedded = layers.Dense(64, activation='relu')(input_layer)
         embedded = layers.BatchNormalization()(embedded)
         
         # Reshape for attention mechanism
-        reshaped = layers.Reshape((1, 32))(embedded)
+        reshaped = layers.Reshape((1, 64))(embedded)
         
         # Self-attention layer
         attention = layers.MultiHeadAttention(
-            num_heads=4,
+            num_heads=8,
             key_dim=8,
             dropout=0.2
         )(reshaped, reshaped)
@@ -231,15 +334,20 @@ class OUDNeuralNetworks:
         flattened = layers.Flatten()(attention)
         
         # Feature interaction layers
-        hidden = layers.Dense(64, activation='relu',
+        hidden = layers.Dense(128, activation='relu',
                              kernel_regularizer=regularizers.l2(0.001))(flattened)
+        hidden = layers.BatchNormalization()(hidden)
+        hidden = layers.Dropout(0.3)(hidden)
+        
+        hidden = layers.Dense(64, activation='relu',
+                             kernel_regularizer=regularizers.l2(0.001))(hidden)
         hidden = layers.BatchNormalization()(hidden)
         hidden = layers.Dropout(0.3)(hidden)
         
         hidden = layers.Dense(32, activation='relu',
                              kernel_regularizer=regularizers.l2(0.001))(hidden)
         hidden = layers.BatchNormalization()(hidden)
-        hidden = layers.Dropout(0.3)(hidden)
+        hidden = layers.Dropout(0.2)(hidden)
         
         # Output layer
         output = layers.Dense(1, activation='sigmoid')(hidden)
@@ -279,7 +387,7 @@ class OUDNeuralNetworks:
                 verbose=1
             ),
             ModelCheckpoint(
-                f'best_{model_name.lower().replace(" ", "_")}.h5',
+                f'best_{model_name.lower().replace(" ", "_")}_full_features.h5',
                 monitor='val_auc',
                 mode='max',
                 save_best_only=True,
@@ -360,7 +468,7 @@ class OUDNeuralNetworks:
                 ax.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('oud_nn_training_history.png', dpi=300, bbox_inches='tight')
+        plt.savefig('oud_nn_training_history_full_features.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def plot_model_comparison(self):
@@ -399,7 +507,7 @@ class OUDNeuralNetworks:
             axes[idx].tick_params(axis='x', rotation=30)
         
         plt.tight_layout()
-        plt.savefig('oud_nn_metrics_comparison.png', dpi=300, bbox_inches='tight')
+        plt.savefig('oud_nn_metrics_comparison_full_features.png', dpi=300, bbox_inches='tight')
         plt.show()
         
         # 2. ROC and PR Curves
@@ -439,13 +547,13 @@ class OUDNeuralNetworks:
         ax2.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('oud_nn_roc_pr_curves.png', dpi=300, bbox_inches='tight')
+        plt.savefig('oud_nn_roc_pr_curves_full_features.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def generate_summary_report(self):
         """Generate comprehensive summary report for NN models"""
         print("\n" + "="*80)
-        print("NEURAL NETWORK MODELS - SUMMARY REPORT")
+        print("NEURAL NETWORK MODELS - SUMMARY REPORT (WITH FULL FEATURES)")
         print("="*80)
         
         # Create summary DataFrame
@@ -474,17 +582,28 @@ class OUDNeuralNetworks:
         print("\n1. Simple Feedforward NN:")
         print("   - Best for: Baseline deep learning performance")
         print("   - Advantages: Fast training, straightforward interpretation")
-        print("   - Use when: You need a reliable baseline with good generalization")
+        print("   - Enhanced with 4 layers to capture complex SDOH patterns")
         
         print("\n2. Wide & Deep NN:")
         print("   - Best for: Capturing both memorization and generalization")
-        print("   - Advantages: Handles linear + non-linear patterns")
-        print("   - Use when: You have both direct indicators and complex interactions")
+        print("   - Advantages: Handles linear demographic features + non-linear clinical patterns")
+        print("   - Wide component captures direct SDOH effects")
         
         print("\n3. Attention-based NN:")
         print("   - Best for: Understanding feature importance dynamically")
-        print("   - Advantages: Interpretable attention weights, adaptive feature selection")
-        print("   - Use when: You need to understand which features drive predictions")
+        print("   - Advantages: Can identify which combination of clinical/demographic/SDOH features matter")
+        print("   - Attention weights can reveal interaction patterns")
+        
+        # Feature set insights
+        print("\n" + "-"*80)
+        print("FEATURE SET INSIGHTS:")
+        print("-"*80)
+        print("\nThe neural networks now process:")
+        print(f"• {len(self.mme_features)} MME features (prescription patterns)")
+        print(f"• {len(self.prescriber_features)} Prescriber features (healthcare utilization)")
+        print(f"• {len(self.demographic_features)} Demographic features (age, gender, insurance)")
+        print(f"• {len(self.sdoh_features)} SDOH features (socioeconomic factors)")
+        print(f"• Total: {self.n_features} features")
         
         # Clinical deployment recommendations
         print("\n" + "-"*80)
@@ -514,25 +633,32 @@ class OUDNeuralNetworks:
             print(f"\n{model_name}:")
             print(f"   Total parameters: {total_params:,}")
             print(f"   Model size: ~{total_params * 4 / 1024 / 1024:.1f} MB")
+            print(f"   Input features: {self.n_features}")
         
         # Save summary
-        summary_df.to_csv('oud_nn_model_summary.csv', index=False)
-        print("\n✓ Summary saved to 'oud_nn_model_summary.csv'")
+        summary_df.to_csv('oud_nn_model_summary_full_features.csv', index=False)
+        print("\n✓ Summary saved to 'oud_nn_model_summary_full_features.csv'")
         
         return summary_df
     
     def _get_architecture_summary(self, model_name):
         """Get brief architecture summary for each model"""
         summaries = {
-            'Simple Feedforward': '3 hidden layers (64-32-16)',
-            'Wide & Deep': 'Wide path + 3 deep layers',
-            'Attention-based': 'Multi-head attention + 2 layers'
+            'Simple Feedforward': f'4 hidden layers (128-64-32-16), {self.n_features} inputs',
+            'Wide & Deep': f'Wide path + 4 deep layers, {self.n_features} inputs',
+            'Attention-based': f'Multi-head attention (8 heads) + 3 layers, {self.n_features} inputs'
         }
         return summaries.get(model_name, 'Custom architecture')
     
     def run_complete_evaluation(self):
         """Run the complete neural network evaluation pipeline"""
-        print(" Starting Neural Network Model Evaluation for OUD Prediction")
+        if not HAS_TENSORFLOW:
+            print("ERROR: TensorFlow is required but not installed.")
+            print("Please install with: pip install tensorflow")
+            return None
+            
+        print("Starting Neural Network Model Evaluation for OUD Prediction")
+        print("   Using Full Feature Set (Clinical + Demographic + SDOH)")
         print("="*80)
         
         # Load and prepare data
@@ -584,6 +710,13 @@ class OUDNeuralNetworks:
 def main():
     """Main function to run neural network evaluation"""
     
+    # Check if TensorFlow is available
+    if not HAS_TENSORFLOW:
+        print("ERROR: TensorFlow is not installed.")
+        print("Please install it with: pip install tensorflow")
+        print("For GPU support: pip install tensorflow-gpu")
+        return
+    
     # Enable GPU if available
     physical_devices = tf.config.list_physical_devices('GPU')
     if physical_devices:
@@ -592,8 +725,10 @@ def main():
     else:
         print("No GPU found, using CPU")
     
-    # Initialize evaluator
-    evaluator = OUDNeuralNetworks()
+    # Initialize evaluator with your dataset path
+    evaluator = OUDNeuralNetworks(
+        data_path='/sharefolder/wanglab/ML_training/final_OUD_ML_dataset.csv'
+    )
     
     # Run evaluation
     results = evaluator.run_complete_evaluation()
@@ -607,10 +742,10 @@ def main():
         print(" Model comparison visualizations saved")
         print(" Summary report generated")
         print("\n Output files:")
-        print("  - oud_nn_training_history.png")
-        print("  - oud_nn_metrics_comparison.png")
-        print("  - oud_nn_roc_pr_curves.png")
-        print("  - oud_nn_model_summary.csv")
+        print("  - oud_nn_training_history_full_features.png")
+        print("  - oud_nn_metrics_comparison_full_features.png")
+        print("  - oud_nn_roc_pr_curves_full_features.png")
+        print("  - oud_nn_model_summary_full_features.csv")
         print("  - best_*.h5 (saved model weights)")
 
 if __name__ == "__main__":

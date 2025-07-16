@@ -1,0 +1,275 @@
+Starting OUD Prediction Model Evaluation with Full Feature Set
+================================================================================
+Loading dataset...
+Dataset shape: (1669683, 28)
+Columns: ['pat_id', 'most_recent_date', 'MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year', 'MME_120_2_years', 'start_date_180_days', 'start_date_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days', 'oud_label', 'age', 'der_sex', 'pay_type', 'age_median', 'income_household_median', 'home_ownership', 'education_highschool', 'education_college_or_above', 'unemployment_rate', 'poverty', 'disabled', 'race_white', 'race_black', 'race_asian', 'race_native', 'race_pacific', 'hispanic']
+
+Dropping columns: ['pat_id', 'most_recent_date', 'start_date_180_days', 'start_date_2_years']
+
+Encoding categorical variables...
+Gender encoding: {'F': 0, 'M': 1}
+Payment type encoding: {'C': 0, 'M': 1, 'R': 2, 'S': 3, 'T': 4}
+
+Class distribution:
+Non-OUD (0): 1473021 (88.22%)
+OUD (1): 196662 (11.78%)
+Class imbalance ratio: 1:7.5
+
+============================================================
+FEATURE GROUP STATISTICS
+============================================================
+
+MME Features (4 features):
+       MME_last_365_days  MME_last_2_years  MME_prior_1_year  MME_120_2_years
+count         1669683.00        1669683.00        1669683.00       1669683.00
+mean               97.67            123.47             79.48             0.00
+std               260.97            391.86            684.54             0.07
+min                 0.01              0.01              0.00             0.00
+25%                29.17             30.00              0.00             0.00
+50%                45.00             50.00              0.00             0.00
+75%                86.25             96.00              0.00             0.00
+max             45344.00          54740.00         359885.23            20.00
+
+Prescriber Features (2 features):
+       prscbr_last_2_years  prscrbr_last_180_days
+count           1669683.00             1669683.00
+mean                  1.31                   1.15
+std                   0.86                   0.49
+min                   1.00                   1.00
+25%                   1.00                   1.00
+50%                   1.00                   1.00
+75%                   1.00                   1.00
+max                  59.00                  28.00
+
+Demographic Features (3 features):
+              age     der_sex    pay_type
+count  1669683.00  1669683.00  1669683.00
+mean       108.82        0.44        0.39
+std        356.43        0.50        0.86
+min         -1.00        0.00        0.00
+25%         30.00        0.00        0.00
+50%         44.00        0.00        0.00
+75%         57.00        1.00        0.00
+max       2021.00        1.00        4.00
+
+SDOH Features (14 features):
+       age_median  income_household_median  ...  race_pacific    hispanic
+count  1669683.00               1669683.00  ...     1669683.0  1669683.00
+mean        40.95                 80412.57  ...           0.1       15.31
+std          7.09                 35417.47  ...           0.3       19.91
+min         20.70                 17063.00  ...           0.0        0.00
+25%         36.20                 57841.00  ...           0.0        2.00
+50%         40.20                 71664.00  ...           0.0        6.80
+75%         44.60                 93172.00  ...           0.1       20.40
+max         78.10                250001.00  ...          14.8       91.40
+
+[8 rows x 14 columns]
+
+Train set: (1335746, 23)
+Test set: (333937, 23)
+
+Class weights: {0: 0.5667548641566306, 1: 4.245045445878091}
+
+1. Building Logistic Regression...
+2. Building Random Forest...
+3. Building XGBoost...
+
+============================================================
+Training Logistic Regression
+============================================================
+
+Performance Metrics:
+Accuracy: 0.7936
+Sensitivity (Recall): 0.4899
+Specificity: 0.8342
+Precision: 0.2828
+F1-Score: 0.3586
+AUC-ROC: 0.7095
+AUC-PR: 0.3136
+CV AUC: 0.7125 (±0.0013)
+
+Confusion Matrix:
+[[245749  48856]
+ [ 20063  19269]]
+True Negatives: 245749
+False Positives: 48856
+False Negatives: 20063
+True Positives: 19269
+
+Top 15 Feature Coefficients (by magnitude):
+  pay_type: 0.4390
+  MME_prior_1_year: 0.3096
+  age: 0.2841
+  prscbr_last_2_years: 0.2456
+  MME_last_365_days: 0.2143
+  MME_last_2_years: -0.1563
+  race_black: -0.0908
+  der_sex: 0.0793
+  race_white: -0.0488
+  hispanic: -0.0460
+  race_asian: -0.0306
+  income_household_median: -0.0220
+  disabled: 0.0151
+  home_ownership: -0.0148
+  prscrbr_last_180_days: -0.0145
+
+============================================================
+Training Random Forest
+============================================================
+
+Performance Metrics:
+Accuracy: 0.7535
+Sensitivity (Recall): 0.5953
+Specificity: 0.7747
+Precision: 0.2607
+F1-Score: 0.3626
+AUC-ROC: 0.7451
+AUC-PR: 0.3510
+CV AUC: 0.7475 (±0.0012)
+
+Confusion Matrix:
+[[228217  66388]
+ [ 15918  23414]]
+True Negatives: 228217
+False Positives: 66388
+False Negatives: 15918
+True Positives: 23414
+
+Top 15 Feature Importances:
+  age: 0.3573
+  pay_type: 0.2927
+  MME_prior_1_year: 0.1490
+  MME_last_2_years: 0.0615
+  prscbr_last_2_years: 0.0379
+  MME_last_365_days: 0.0359
+  prscrbr_last_180_days: 0.0151
+  hispanic: 0.0046
+  age_median: 0.0041
+  race_black: 0.0040
+  race_white: 0.0040
+  der_sex: 0.0039
+  income_household_median: 0.0037
+  disabled: 0.0037
+  education_college_or_above: 0.0035
+
+============================================================
+Training XGBoost
+============================================================
+
+Performance Metrics:
+Accuracy: 0.8822
+Sensitivity (Recall): 0.0000
+Specificity: 1.0000
+Precision: 0.0000
+F1-Score: 0.0000
+AUC-ROC: 0.7437
+AUC-PR: 0.3521
+CV AUC: 0.7466 (±0.0012)
+
+Confusion Matrix:
+[[294605      0]
+ [ 39332      0]]
+True Negatives: 294605
+False Positives: 0
+False Negatives: 39332
+True Positives: 0
+
+Top 15 Feature Importances:
+  age: 0.4107
+  pay_type: 0.2254
+  MME_prior_1_year: 0.1274
+  MME_last_2_years: 0.0338
+  prscbr_last_2_years: 0.0280
+  race_pacific: 0.0144
+  prscrbr_last_180_days: 0.0142
+  MME_last_365_days: 0.0138
+  poverty: 0.0130
+  hispanic: 0.0123
+  disabled: 0.0108
+  income_household_median: 0.0107
+  unemployment_rate: 0.0105
+  der_sex: 0.0098
+  race_black: 0.0096
+
+================================================================================
+FEATURE IMPORTANCE BY GROUP
+================================================================================
+
+Random Forest - Importance by Feature Category:
+                sum    mean  count
+category                          
+Demographic  0.6539  0.2180      3
+MME          0.2465  0.0616      4
+Prescriber   0.0530  0.0265      2
+SDOH         0.0466  0.0033     14
+
+XGBoost - Importance by Feature Category:
+                sum    mean  count
+category                          
+Demographic  0.6460  0.2153      3
+MME          0.1783  0.0446      4
+SDOH         0.1335  0.0095     14
+Prescriber   0.0422  0.0211      2
+
+================================================================================
+SUMMARY REPORT: OUD PREDICTION MODEL EVALUATION
+================================================================================
+
+Model Performance Summary:
+              Model AUC-ROC AUC-PR Sensitivity Specificity Precision F1-Score          CV AUC
+Logistic Regression  0.7095 0.3136      0.4899      0.8342    0.2828   0.3586 0.7125 (±0.001)
+      Random Forest  0.7451 0.3510      0.5953      0.7747    0.2607   0.3626 0.7475 (±0.001)
+            XGBoost  0.7437 0.3521      0.0000      1.0000    0.0000   0.0000 0.7466 (±0.001)
+
+--------------------------------------------------------------------------------
+HEALTHCARE-SPECIFIC INSIGHTS:
+--------------------------------------------------------------------------------
+
+ Clinical Recommendations:
+
+1. For SCREENING (maximize sensitivity to catch all potential OUD cases):
+   → Use Random Forest
+   → Sensitivity: 0.5953
+   → This will identify 59.5% of OUD cases
+
+2. For TARGETED INTERVENTION (balance precision and recall):
+   → Use Random Forest
+   → F1-Score: 0.3626
+   → Precision: 0.2607
+
+3. For RESOURCE-LIMITED SETTINGS (maximize precision):
+   → Use Logistic Regression
+   → Precision: 0.2828
+   → 28.3% of positive predictions are correct
+
+--------------------------------------------------------------------------------
+FEATURE INSIGHTS:
+--------------------------------------------------------------------------------
+
+The models now incorporate:
+• Prescription patterns (MME features)
+• Healthcare utilization (prescriber counts)
+• Patient demographics (age, gender, insurance)
+• Social determinants of health (income, education, employment, etc.)
+
+This comprehensive feature set enables better risk stratification
+and can help identify both clinical and social risk factors for OUD.
+
+✓ Summary saved to 'oud_model_summary_full_features.csv'
+
+ Evaluation completed successfully!
+
+================================================================================
+EVALUATION COMPLETE
+================================================================================
+ All models trained and evaluated with full feature set
+ Visualizations saved
+ Summary report generated
+
+ Output files:
+  - oud_model_metrics_comparison.png
+  - oud_roc_curves.png
+  - oud_pr_curves.png
+  - oud_confusion_matrices.png
+  - feature_importance_by_category_*.png
+  - oud_model_summary_full_features.csv

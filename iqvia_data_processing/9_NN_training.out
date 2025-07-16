@@ -4,7 +4,7 @@ Checking for libcudart.so:
 lrwxrwxrwx 1 root root     17 May 30 17:15 /cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64/libcudart.so -> libcudart.so.11.0
 lrwxrwxrwx 1 root root     20 May 30 17:15 /cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64/libcudart.so.11.0 -> libcudart.so.11.8.89
 -rwxr-xr-x 1 root root 679264 May 24  2023 /cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64/libcudart.so.11.8.89
-Sat Jul  5 21:43:34 2025       
+Tue Jul 15 19:47:10 2025       
 +---------------------------------------------------------------------------------------+
 | NVIDIA-SMI 530.30.02              Driver Version: 530.30.02    CUDA Version: 12.1     |
 |-----------------------------------------+----------------------+----------------------+
@@ -13,7 +13,7 @@ Sat Jul  5 21:43:34 2025
 |                                         |                      |               MIG M. |
 |=========================================+======================+======================|
 |   0  Tesla V100-PCIE-16GB            On | 00000000:01:00.0 Off |                    0 |
-| N/A   33C    P0               25W / 250W|      0MiB / 16384MiB |      0%      Default |
+| N/A   34C    P0               25W / 250W|      0MiB / 16384MiB |      0%      Default |
 |                                         |                      |                  N/A |
 +-----------------------------------------+----------------------+----------------------+
 |   1  Tesla V100-PCIE-16GB            On | 00000000:81:00.0 Off |                    0 |
