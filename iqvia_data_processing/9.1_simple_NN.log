@@ -1,0 +1,36 @@
+No GPU found, using CPU
+Loading dataset...
+Initial dataset shape: (1612200, 29)
+Dropped columns: ['pat_id', 'most_recent_date', 'start_date_180_days', 'start_date_2_years']
+
+Encoding categorical variables...
+
+Final feature count: 24
+Features: ['Unnamed: 0', 'MME_last_365_days', 'MME_last_2_years', 'MME_prior_1_year', 'MME_120_2_years', 'prscbr_last_2_years', 'prscrbr_last_180_days', 'age', 'der_sex', 'pay_type']...
+
+Class distribution:
+Non-OUD (0): 1445276 (89.65%)
+OUD (1): 166924 (10.35%)
+Class weights: {0: 0.5577481394557164, 1: 4.829143801969758}
+
+Train set: (1129184, 24)
+Validation set: (241186, 24)
+Test set: (241830, 24)
+================================================================================
+RUNNING SIMPLE NEURAL NETWORK EXPERIMENTS
+================================================================================
+
+============================================================
+EXPERIMENT 1: Single Layer NN (LR=0.01, Epochs=100)
+============================================================
+
+Model Summary:
+Model: "sequential"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ dense (Dense)                   │ (None, 1)              │            25 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 25 (100.00 B)
+ Trainable params: 25 (100.00 B)
+ Non-trainable params: 0 (0.00 B)

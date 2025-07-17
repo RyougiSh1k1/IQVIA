@@ -1,0 +1,30 @@
+CUDA_HOME: /cm/shared/apps/cuda11.8/toolkit/11.8.0
+LD_LIBRARY_PATH: /cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64/stubs:/cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64:/cm/local/apps/cuda/libs/current/lib64:/cm/shared/apps/cuda11.8/toolkit/11.8.0/targets/x86_64-linux/lib:/cm/shared/apps/slurm/18.08.9/lib64/slurm:/cm/shared/apps/slurm/18.08.9/lib64:/cm/local/apps/gcc/8.2.0/lib:/cm/local/apps/gcc/8.2.0/lib64
+Checking for libcudart.so:
+lrwxrwxrwx 1 root root     17 May 30 17:15 /cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64/libcudart.so -> libcudart.so.11.0
+lrwxrwxrwx 1 root root     20 May 30 17:15 /cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64/libcudart.so.11.0 -> libcudart.so.11.8.89
+-rwxr-xr-x 1 root root 679264 May 24  2023 /cm/shared/apps/cuda11.8/toolkit/11.8.0/lib64/libcudart.so.11.8.89
+Wed Jul 16 20:13:12 2025       
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 530.30.02              Driver Version: 530.30.02    CUDA Version: 12.1     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                  Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf            Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  Tesla V100-PCIE-16GB            On | 00000000:01:00.0 Off |                    0 |
+| N/A   32C    P0               25W / 250W|      4MiB / 16384MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   1  Tesla V100-PCIE-16GB            On | 00000000:81:00.0 Off |                    0 |
+| N/A   29C    P0               25W / 250W|      0MiB / 16384MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+                                                                                         
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
+|  No running processes found                                                           |
++---------------------------------------------------------------------------------------+
