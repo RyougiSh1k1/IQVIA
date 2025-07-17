@@ -27,7 +27,8 @@ from sklearn.metrics import (
     confusion_matrix, roc_auc_score, roc_curve,
     precision_score, recall_score, f1_score,
     accuracy_score, average_precision_score,
-    precision_recall_curve, matthews_corrcoef
+    precision_recall_curve, matthews_corrcoef,
+    fbeta_score  # Add this line
 )
 import tensorflow as tf
 from tensorflow import keras
@@ -617,7 +618,7 @@ class BiGANOUDModel:
             'Recall': recall_score(self.y_test, y_pred, zero_division=0),
             'Specificity': tn / (tn + fp) if (tn + fp) > 0 else 0,
             'F1-Score': f1_score(self.y_test, y_pred),
-            'F2-Score': f1_score(self.y_test, y_pred, beta=2),
+            'F2-Score': fbeta_score(self.y_test, y_pred, beta=2),
             'AUC-ROC': roc_auc_score(self.y_test, y_pred_proba),
             'AUC-PR': average_precision_score(self.y_test, y_pred_proba),
             'MCC': matthews_corrcoef(self.y_test, y_pred),
