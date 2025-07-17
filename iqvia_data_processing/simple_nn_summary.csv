@@ -1,0 +1,5 @@
+Model Name,Model Structure,Optimizer,Criterion,Epochs,Learning Rate,Cross-Validation,Precision,Recall,AUC-ROC,TP,TN,FP,FN,NPV,Total Obs,Specificity,Accuracy,Model
+Single Layer NN (Config 1),Single Layer NN (input -> FC -> sigmoid),Adam,BCELoss,100,0.01,0.6919,0.2040,0.5403,0.6953,13529,164011,52780,11510,0.9344238011406043,241830,0.7565,0.7341520903113757,"Single Layer NN (LR=0.01, E=100)"
+Single Layer NN (Config 2),Single Layer NN (input -> FC -> sigmoid),Adam,BCELoss,100,0.001,0.6952,0.1994,0.5582,0.6963,13976,160661,56130,11063,0.9355768558850248,241830,0.7411,0.7221477897696729,"Single Layer NN (LR=0.001, E=100)"
+Single Layer NN (Config 3),Single Layer NN (input -> FC -> sigmoid),Adam,BCELoss,200,0.001,0.6952,0.1993,0.5578,0.6963,13966,160687,56104,11073,0.9355321378667909,241830,0.7412,0.7222139519497167,"Single Layer NN (LR=0.001, E=200)"
+3 Layer NN Model,3 Layer NN Model (input -> Linear(128) -> Linear(64) -> Linear(1) -> Sigmoid),Adam,BCELoss,100,0.01,0.6815,0.2114,0.5031,0.6918,12596,169816,46975,12443,0.9317290229837758,241830,0.7833,0.7542984741347227,"3 Layer NN (LR=0.01, E=100)"
