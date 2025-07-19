@@ -1,0 +1,4 @@
+Model,Architecture,AUC-ROC,AUC-PR,Sensitivity,Specificity,Precision (PPV),NPV,F1-Score,TP,TN,FP,FN
+Simple Feedforward,"4 hidden layers (128-64-32-16), 24 inputs",0.7072,0.2550,0.5362,0.7739,0.2150,0.9353,0.3069,13426,167773,49018,11613
+Wide & Deep,"Wide path + 4 deep layers, 24 inputs",0.7175,0.2667,0.5861,0.7380,0.2053,0.9392,0.3041,14676,159997,56794,10363
+Attention-based,"Multi-head attention (8 heads) + 3 layers, 24 inputs",0.7180,0.2670,0.5879,0.7349,0.2039,0.9392,0.3028,14721,159322,57469,10318

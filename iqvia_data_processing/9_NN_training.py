@@ -42,6 +42,16 @@ np.random.seed(42)
 if HAS_TENSORFLOW:
     tf.random.set_seed(42)
 
+def calculate_npv(tn, fn):
+    """
+    Calculate Negative Predictive Value (NPV)
+    NPV = TN / (TN + FN)
+    """
+    if (tn + fn) > 0:
+        return tn / (tn + fn)
+    else:
+        return 0.0
+
 class OUDNeuralNetworks:
     """
     Neural Network models for OUD prediction with focus on 
@@ -409,41 +419,56 @@ class OUDNeuralNetworks:
         return history
     
     def evaluate_model(self, model, model_name):
-        """Evaluate a trained model on test set"""
+        """Evaluate a trained model on test set with NPV and confusion matrix values"""
         print(f"\nEvaluating {model_name}...")
         
         # Get predictions
         y_pred_proba = model.predict(self.X_test).flatten()
         y_pred = (y_pred_proba > 0.5).astype(int)
         
-        # Calculate metrics
+        # Calculate confusion matrix
         tn, fp, fn, tp = confusion_matrix(self.y_test, y_pred).ravel()
         
+        # Calculate all metrics including NPV
         metrics = {
             'accuracy': (tp + tn) / (tp + tn + fp + fn),
             'sensitivity': recall_score(self.y_test, y_pred),
-            'specificity': tn / (tn + fp),
+            'specificity': tn / (tn + fp) if (tn + fp) > 0 else 0,
             'precision': precision_score(self.y_test, y_pred),
+            'npv': tn / (tn + fn) if (tn + fn) > 0 else 0,  # Add NPV
             'f1_score': f1_score(self.y_test, y_pred),
             'auc_roc': roc_auc_score(self.y_test, y_pred_proba),
             'auc_pr': average_precision_score(self.y_test, y_pred_proba),
             'confusion_matrix': confusion_matrix(self.y_test, y_pred),
+            'tp': tp,  # Add individual values
+            'tn': tn,
+            'fp': fp,
+            'fn': fn,
             'y_pred': y_pred,
             'y_pred_proba': y_pred_proba
         }
         
-        # Print results
+        # Print comprehensive results
         print(f"\nPerformance Metrics for {model_name}:")
         print(f"Accuracy: {metrics['accuracy']:.4f}")
         print(f"Sensitivity (Recall): {metrics['sensitivity']:.4f}")
         print(f"Specificity: {metrics['specificity']:.4f}")
-        print(f"Precision: {metrics['precision']:.4f}")
+        print(f"Precision (PPV): {metrics['precision']:.4f}")
+        print(f"NPV: {metrics['npv']:.4f}")
         print(f"F1-Score: {metrics['f1_score']:.4f}")
         print(f"AUC-ROC: {metrics['auc_roc']:.4f}")
         print(f"AUC-PR: {metrics['auc_pr']:.4f}")
         
         print(f"\nConfusion Matrix:")
-        print(metrics['confusion_matrix'])
+        print(f"True Positives (TP): {tp}")
+        print(f"True Negatives (TN): {tn}")
+        print(f"False Positives (FP): {fp}")
+        print(f"False Negatives (FN): {fn}")
+        print(f"\nConfusion Matrix Layout:")
+        print(f"              Predicted")
+        print(f"              Neg    Pos")
+        print(f"Actual Neg    {tn:<6} {fp:<6}")
+        print(f"Actual Pos    {fn:<6} {tp:<6}")
         
         return metrics
     
@@ -551,12 +576,12 @@ class OUDNeuralNetworks:
         plt.show()
     
     def generate_summary_report(self):
-        """Generate comprehensive summary report for NN models"""
+        """Generate comprehensive summary report for NN models with all metrics"""
         print("\n" + "="*80)
-        print("NEURAL NETWORK MODELS - SUMMARY REPORT (WITH FULL FEATURES)")
+        print("NEURAL NETWORK MODELS - COMPREHENSIVE SUMMARY REPORT")
         print("="*80)
         
-        # Create summary DataFrame
+        # Create detailed summary DataFrame
         summary_data = []
         for model_name, metrics in self.results.items():
             summary_data.append({
@@ -566,78 +591,35 @@ class OUDNeuralNetworks:
                 'AUC-PR': f"{metrics['auc_pr']:.4f}",
                 'Sensitivity': f"{metrics['sensitivity']:.4f}",
                 'Specificity': f"{metrics['specificity']:.4f}",
-                'Precision': f"{metrics['precision']:.4f}",
-                'F1-Score': f"{metrics['f1_score']:.4f}"
+                'Precision (PPV)': f"{metrics['precision']:.4f}",
+                'NPV': f"{metrics['npv']:.4f}",
+                'F1-Score': f"{metrics['f1_score']:.4f}",
+                'TP': metrics['tp'],
+                'TN': metrics['tn'],
+                'FP': metrics['fp'],
+                'FN': metrics['fn']
             })
         
         summary_df = pd.DataFrame(summary_data)
-        print("\nModel Performance Summary:")
+        print("\nModel Performance Summary with Confusion Matrix Values:")
         print(summary_df.to_string(index=False))
         
-        # Model-specific insights
+        # Additional analysis
         print("\n" + "-"*80)
-        print("MODEL-SPECIFIC INSIGHTS:")
+        print("CONFUSION MATRIX ANALYSIS:")
         print("-"*80)
         
-        print("\n1. Simple Feedforward NN:")
-        print("   - Best for: Baseline deep learning performance")
-        print("   - Advantages: Fast training, straightforward interpretation")
-        print("   - Enhanced with 4 layers to capture complex SDOH patterns")
-        
-        print("\n2. Wide & Deep NN:")
-        print("   - Best for: Capturing both memorization and generalization")
-        print("   - Advantages: Handles linear demographic features + non-linear clinical patterns")
-        print("   - Wide component captures direct SDOH effects")
-        
-        print("\n3. Attention-based NN:")
-        print("   - Best for: Understanding feature importance dynamically")
-        print("   - Advantages: Can identify which combination of clinical/demographic/SDOH features matter")
-        print("   - Attention weights can reveal interaction patterns")
-        
-        # Feature set insights
-        print("\n" + "-"*80)
-        print("FEATURE SET INSIGHTS:")
-        print("-"*80)
-        print("\nThe neural networks now process:")
-        print(f"• {len(self.mme_features)} MME features (prescription patterns)")
-        print(f"• {len(self.prescriber_features)} Prescriber features (healthcare utilization)")
-        print(f"• {len(self.demographic_features)} Demographic features (age, gender, insurance)")
-        print(f"• {len(self.sdoh_features)} SDOH features (socioeconomic factors)")
-        print(f"• Total: {self.n_features} features")
-        
-        # Clinical deployment recommendations
-        print("\n" + "-"*80)
-        print("CLINICAL DEPLOYMENT RECOMMENDATIONS:")
-        print("-"*80)
-        
-        best_sensitivity = max(self.results.items(), key=lambda x: x[1]['sensitivity'])
-        best_balanced = max(self.results.items(), key=lambda x: x[1]['f1_score'])
-        
-        print(f"\n For Clinical Screening:")
-        print(f"   → Deploy: {best_sensitivity[0]}")
-        print(f"   → Sensitivity: {best_sensitivity[1]['sensitivity']:.4f}")
-        print(f"   → Rationale: Maximizes detection of OUD cases")
-        
-        print(f"\n For Balanced Performance:")
-        print(f"   → Deploy: {best_balanced[0]}")
-        print(f"   → F1-Score: {best_balanced[1]['f1_score']:.4f}")
-        print(f"   → Rationale: Best trade-off between precision and recall")
-        
-        # Computational considerations
-        print("\n" + "-"*80)
-        print("COMPUTATIONAL REQUIREMENTS:")
-        print("-"*80)
-        
-        for model_name, model in self.models.items():
-            total_params = model.count_params()
+        for model_name, metrics in self.results.items():
+            total = metrics['tp'] + metrics['tn'] + metrics['fp'] + metrics['fn']
             print(f"\n{model_name}:")
-            print(f"   Total parameters: {total_params:,}")
-            print(f"   Model size: ~{total_params * 4 / 1024 / 1024:.1f} MB")
-            print(f"   Input features: {self.n_features}")
+            print(f"  - Correctly Classified: {metrics['tp'] + metrics['tn']} ({(metrics['tp'] + metrics['tn'])/total*100:.1f}%)")
+            print(f"  - Misclassified: {metrics['fp'] + metrics['fn']} ({(metrics['fp'] + metrics['fn'])/total*100:.1f}%)")
+            print(f"  - False Positive Rate: {metrics['fp']/(metrics['fp']+metrics['tn'])*100:.1f}%")
+            print(f"  - False Negative Rate: {metrics['fn']/(metrics['fn']+metrics['tp'])*100:.1f}%")
         
-        # Save summary
-        summary_df.to_csv('oud_nn_model_summary_full_features.csv', index=False)
-        print("\n✓ Summary saved to 'oud_nn_model_summary_full_features.csv'")
+        # Save detailed results
+        summary_df.to_csv('nn_model_summary_with_confusion_matrix.csv', index=False)
+        print("\n✓ Detailed summary saved to 'nn_model_summary_with_confusion_matrix.csv'")
         
         return summary_df
     
